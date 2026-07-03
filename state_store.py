@@ -1,3 +1,4 @@
+import json
 import os
 import redis
 
@@ -23,3 +24,16 @@ def get_offset():
 def save_offset(offset):
     r = _get_client()
     r.set("telegram_offset", str(offset))
+
+
+def get_exchange_states():
+    r = _get_client()
+    data = r.get("exchange_states")
+    if data:
+        return json.loads(data)
+    return None
+
+
+def save_exchange_states(states):
+    r = _get_client()
+    r.set("exchange_states", json.dumps(states))

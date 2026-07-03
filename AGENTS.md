@@ -10,31 +10,40 @@ aparecen pares que cumplen los parámetros técnicos configurados.
 
 ## Configuración
 
-Editar `config.json`:
+### Variables de entorno (obligatorio)
 
-1. `telegram.bot_token` → Token de tu bot de Telegram
-2. `telegram.chat_id` → ID del chat donde recibirás las alertas
-3. `exchanges` → Estado de cada exchange (`"abierto"` o `"cerrado"`)
-4. `screeners.long.filters` → Parámetros del screener Long
-5. `screeners.short.filters` → Parámetros del screener Short
-6. `scan_interval_minutes` → Frecuencia de escaneo (default: 10 min)
+| Variable | Descripción |
+|---|---|
+| `BOT_TOKEN` | Token de tu bot de Telegram |
+| `CHAT_ID` | ID del chat donde recibirás las alertas |
+| `REDIS_URL` | URL de Redis (ej: `redis://...`) |
+
+### config.json
+
+1. `exchanges` → Estados por defecto de cada exchange (`"abierto"` o `"cerrado"`)
+2. `screeners.long.filters` → Parámetros del screener Long
+3. `screeners.short.filters` → Parámetros del screener Short
 
 ## Uso local
 
 ```bash
+export BOT_TOKEN="tu_token"
+export CHAT_ID="tu_chat_id"
+export REDIS_URL="redis://localhost:6379/0"
 python main.py
 ```
 
-## Deploy en Render (Cron Job + Redis)
+## Deploy en GitHub Actions (gratis)
 
-Este proyecto está diseñado para correr como **Cron Job en Render** cada 10 minutos.
+Este proyecto corre como **GitHub Actions** cada 5 minutos. No necesita servidor.
 
-### Requisitos en Render
+### Requisitos
 
-1. **Cron Job** → apunta a `python main.py`, cada 10 min
-2. **Redis** → plan gratis (10MB), para persistir offset de Telegram
-3. **Variables de entorno:**
-   - `REDIS_URL` → URL de Redis (ej: `redis://...`)
+1. **Redis Cloud** (gratis) → [redis.com/try-free](https://redis.com/try-free)
+2. **GitHub Secrets** en tu repo:
+   - `REDIS_URL` → URL de Redis Cloud
+   - `BOT_TOKEN` → Token de Telegram
+   - `CHAT_ID` → ID del chat
 
 ### Control remoto vía Telegram
 

@@ -1,11 +1,12 @@
 import json
 import logging
+import os
 import sys
 
 from screener_client import query_screener
 from detector import passes_filters
 from telegram_notifier import send_alert, send_message, check_commands
-from state_store import get_offset, save_offset
+from state_store import get_offset, save_offset, get_exchange_states, save_exchange_states
 
 logging.basicConfig(
     level=logging.INFO,
@@ -20,11 +21,6 @@ CONFIG_FILE = "config.json"
 def load_config():
     with open(CONFIG_FILE, "r") as f:
         return json.load(f)
-
-
-def save_config(config):
-    with open(CONFIG_FILE, "w") as f:
-        json.dump(config, f, indent=2)
 
 
 def format_indicators(row, screener_config):
@@ -54,24 +50,32 @@ def format_indicators(row, screener_config):
 def main():
     logger.info("=== TradingView Screener Agent ===")
 
+    bot_token = os.environ.get("BOT_TOKEN")
+    chat_id = os.environ.get("CHAT_ID")
+    if not bot_token or not chat_id:
+        logger.error("Faltan variables de entorno: BOT_TOKEN y CHAT_ID")
+        sys.exit(1)
+
     try:
         config = load_config()
     except Exception as e:
         logger.error("Error cargando config.json: %s", e)
         sys.exit(1)
 
-    tg = config["telegram"]
-    bot_token = tg["bot_token"]
-    chat_id = tg["chat_id"]
+    # 1. Estados de exchanges: Redis con fallback a config.json
+    exchanges = get_exchange_states()
+    if exchanges is None:
+        exchanges = dict(config.get("exchanges", {}))
+        if not exchanges:
+            exchanges = {"BITGET": "abierto", "PIONEX": "abierto"}
 
-    # 1. Procesar comandos Telegram (offset via Redis)
+    # 2. Procesar comandos Telegram
     offset = get_offset()
     new_offset, toggles = check_commands(bot_token, offset)
 
     for exchange, estado, chat_origin in toggles:
-        if exchange in config["exchanges"]:
-            config["exchanges"][exchange] = estado
-            save_config(config)
+        if exchange in exchanges:
+            exchanges[exchange] = estado
             msg = f"✅ {exchange}: {estado.upper()}"
             send_message(bot_token, chat_origin or chat_id, msg)
             logger.info("Comando: %s → %s", exchange, estado)
@@ -82,9 +86,10 @@ def main():
             )
 
     save_offset(new_offset)
+    save_exchange_states(exchanges)
 
-    # 2. Exchanges activos
-    activos = [ex for ex, st in config["exchanges"].items() if st == "abierto"]
+    # 3. Exchanges activos
+    activos = [ex for ex, st in exchanges.items() if st == "abierto"]
 
     if not activos:
         logger.info("Todos los exchanges cerrados. No se escanea.")
@@ -100,7 +105,7 @@ def main():
 
     logger.info("Obtenidos %d pares", len(rows))
 
-    # 3. Filtrar y enviar alertas para cada screener
+    # 4. Filtrar y enviar alertas
     for screener_key, screener_cfg in config["screeners"].items():
         logger.info("Filtrando %s...", screener_cfg["name"])
         count = 0

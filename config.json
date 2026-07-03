@@ -1,8 +1,4 @@
 {
-  "telegram": {
-    "bot_token": "8901580299:AAHg4DA8CJFw6nCKgMHSAjVQIv0XBQrbnsM",
-    "chat_id": "ScreenerTWBot"
-  },
   "exchanges": {
     "BITGET": "abierto",
     "PIONEX": "abierto"
@@ -12,82 +8,32 @@
       "name": "LONG",
       "emoji": "\u00f0\u0178\u0178\u00a2",
       "filters": {
-        "change_24h": {
-          "min": 0,
-          "max": 3
-        },
-        "volume_usd": {
-          "min": 300000
-        },
-        "volume_change_24h": {
-          "min": 0,
-          "max": 50
-        },
-        "atr_1h_pct": {
-          "min": 2
-        },
-        "volatility": {
-          "min": 5,
-          "max": 25
-        },
-        "adx_1h": {
-          "min": 25,
-          "max": 45
-        },
-        "adx_4h": {
-          "min": 18,
-          "max": 28
-        },
-        "rsi_1h": {
-          "min": 54,
-          "max": 64
-        },
-        "rsi_4h": {
-          "min": 50,
-          "max": 58
-        }
+        "change_24h": { "min": 0, "max": 3 },
+        "volume_usd": { "min": 300000 },
+        "volume_change_24h": { "min": 0, "max": 50 },
+        "atr_1h_pct": { "min": 2 },
+        "volatility": { "min": 5, "max": 25 },
+        "adx_1h": { "min": 25, "max": 45 },
+        "adx_4h": { "min": 18, "max": 28 },
+        "rsi_1h": { "min": 54, "max": 64 },
+        "rsi_4h": { "min": 50, "max": 58 }
       }
     },
     "short": {
       "name": "SHORT",
       "emoji": "\u00f0\u0178\u201d\u00b4",
       "filters": {
-        "change_24h": {
-          "min": -3,
-          "max": 0
-        },
-        "volume_usd": {
-          "min": 300000
-        },
-        "volume_change_24h": {
-          "min": -30,
-          "max": 50
-        },
-        "atr_1h_pct": {
-          "min": 2
-        },
-        "volatility": {
-          "min": 5,
-          "max": 25
-        },
-        "rsi_1h": {
-          "min": 33,
-          "max": 45
-        },
-        "rsi_4h": {
-          "min": 42,
-          "max": 50
-        },
-        "adx_1h": {
-          "min": 25,
-          "max": 35
-        },
-        "adx_4h": {
-          "min": 18,
-          "max": 28
-        }
+        "change_24h": { "min": -3, "max": 0 },
+        "volume_usd": { "min": 300000 },
+        "volume_change_24h": { "min": -30, "max": 50 },
+        "atr_1h_pct": { "min": 2 },
+        "volatility": { "min": 5, "max": 25 },
+        "rsi_1h": { "min": 33, "max": 45 },
+        "rsi_4h": { "min": 42, "max": 50 },
+        "adx_1h": { "min": 25, "max": 35 },
+        "adx_4h": { "min": 18, "max": 28 }
       }
     }
   },
-  "scan_interval_minutes": 10
+  "scan_interval_minutes": 5
 }
