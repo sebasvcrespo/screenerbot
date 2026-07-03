@@ -62,22 +62,18 @@ def main():
         logger.error("Error cargando config.json: %s", e)
         sys.exit(1)
 
-    # 1. Estados de exchanges: Redis con fallback a config.json
     exchanges = get_exchange_states()
     if exchanges is None:
         exchanges = dict(config.get("exchanges", {}))
         if not exchanges:
             exchanges = {"BITGET": "abierto", "PIONEX": "abierto"}
 
-    # 2. Procesar comandos Telegram
     offset = get_offset()
     new_offset, toggles = check_commands(bot_token, offset)
 
     for exchange, estado, chat_origin in toggles:
         if exchange in exchanges:
             exchanges[exchange] = estado
-            msg = f"✅ {exchange}: {estado.upper()}"
-            send_message(bot_token, chat_origin or chat_id, msg)
             logger.info("Comando: %s → %s", exchange, estado)
         else:
             send_message(
@@ -88,7 +84,6 @@ def main():
     save_offset(new_offset)
     save_exchange_states(exchanges)
 
-    # 3. Exchanges activos
     activos = [ex for ex, st in exchanges.items() if st == "abierto"]
 
     if not activos:
@@ -105,7 +100,6 @@ def main():
 
     logger.info("Obtenidos %d pares", len(rows))
 
-    # 4. Filtrar y enviar alertas
     for screener_key, screener_cfg in config["screeners"].items():
         logger.info("Filtrando %s...", screener_cfg["name"])
         count = 0
