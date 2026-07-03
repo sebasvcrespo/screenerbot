@@ -16,7 +16,8 @@ aparecen pares que cumplen los parámetros técnicos configurados.
 |---|---|
 | `BOT_TOKEN` | Token de tu bot de Telegram |
 | `CHAT_ID` | ID del chat donde recibirás las alertas |
-| `REDIS_URL` | URL de Redis (ej: `redis://...`) |
+| `UPSTASH_REDIS_REST_URL` | URL REST de Upstash (ej: `https://xxxx.upstash.io`) |
+| `UPSTASH_REDIS_REST_TOKEN` | Token REST de Upstash |
 
 ### config.json
 
@@ -29,7 +30,8 @@ aparecen pares que cumplen los parámetros técnicos configurados.
 ```bash
 export BOT_TOKEN="tu_token"
 export CHAT_ID="tu_chat_id"
-export REDIS_URL="redis://localhost:6379/0"
+export UPSTASH_REDIS_REST_URL="https://xxxx.upstash.io"
+export UPSTASH_REDIS_REST_TOKEN="tu_token"
 python main.py
 ```
 
@@ -39,9 +41,10 @@ Este proyecto corre como **GitHub Actions** cada 5 minutos. No necesita servidor
 
 ### Requisitos
 
-1. **Redis Cloud** (gratis) → [redis.com/try-free](https://redis.com/try-free)
+1. **Upstash Redis** (gratis) → [upstash.com](https://upstash.com)
 2. **GitHub Secrets** en tu repo:
-   - `REDIS_URL` → URL de Redis Cloud
+   - `UPSTASH_REDIS_REST_URL` → URL REST de Upstash
+   - `UPSTASH_REDIS_REST_TOKEN` → Token REST de Upstash
    - `BOT_TOKEN` → Token de Telegram
    - `CHAT_ID` → ID del chat
 

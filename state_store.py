@@ -1,39 +1,61 @@
 import json
 import os
-import redis
+import requests
 
-_r = None
+_rest_url = None
+_rest_token = None
 
 
-def _get_client():
-    global _r
-    if _r is None:
-        url = os.environ.get("REDIS_URL")
-        if not url:
-            url = "redis://localhost:6379/0"
-        _r = redis.Redis.from_url(url, decode_responses=True)
-    return _r
+def _ensure():
+    global _rest_url, _rest_token
+    if _rest_url is None:
+        _rest_url = os.environ.get("UPSTASH_REDIS_REST_URL", "").rstrip("/")
+        _rest_token = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
+
+
+def _request(method, path, body=None):
+    _ensure()
+    if not _rest_url:
+        return None
+    url = f"{_rest_url}{path}"
+    headers = {"Authorization": f"Bearer {_rest_token}"}
+    try:
+        if method == "GET":
+            resp = requests.get(url, headers=headers, timeout=10)
+        else:
+            resp = requests.post(url, headers=headers, data=body, timeout=10)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception:
+        return None
+
+
+def _get(key):
+    result = _request("GET", f"/get/{key}")
+    if result and "result" in result:
+        return result["result"]
+    return None
+
+
+def _set(key, value):
+    _request("POST", f"/set/{key}", body=str(value))
 
 
 def get_offset():
-    r = _get_client()
-    val = r.get("telegram_offset")
+    val = _get("telegram_offset")
     return int(val) if val else 0
 
 
 def save_offset(offset):
-    r = _get_client()
-    r.set("telegram_offset", str(offset))
+    _set("telegram_offset", offset)
 
 
 def get_exchange_states():
-    r = _get_client()
-    data = r.get("exchange_states")
-    if data:
-        return json.loads(data)
+    val = _get("exchange_states")
+    if val:
+        return json.loads(val)
     return None
 
 
 def save_exchange_states(states):
-    r = _get_client()
-    r.set("exchange_states", json.dumps(states))
+    _set("exchange_states", json.dumps(states))
