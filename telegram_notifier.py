@@ -17,10 +17,9 @@ def send_alert(bot_token, chat_id, screener_name, screener_emoji, pair, exchange
     text = "\n".join(lines)
     url = TELEGRAM_API_URL.format(token=bot_token)
 
-    resp = requests.get(url, params={
+    resp = requests.post(url, json={
         "chat_id": chat_id,
         "text": text,
-        "parse_mode": "HTML",
     }, timeout=15)
     resp.raise_for_status()
     return resp.json()
