@@ -12,11 +12,9 @@
         "volume_usd": { "min": 300000 },
         "volume_change_24h": { "min": 0, "max": 50 },
         "atr_1h_pct": { "min": 2 },
-        
         "adx_1h": { "min": 25, "max": 45 },
         "adx_4h": { "min": 15, "max": 25 },
-        "rsi_1h": { "min": 54, "max": 64 },
-        
+        "rsi_1h": { "min": 54, "max": 64 }
       }
     },
     "short": {
@@ -27,9 +25,7 @@
         "volume_usd": { "min": 300000 },
         "volume_change_24h": { "min": -30, "max": 50 },
         "atr_1h_pct": { "min": 2 },
-        
         "rsi_1h": { "min": 33, "max": 45 },
-        
         "adx_1h": { "min": 25, "max": 35 },
         "adx_4h": { "min": 15, "max": 25 }
       }
