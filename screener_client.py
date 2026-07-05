@@ -15,6 +15,8 @@ COLUMNS = [
     "ADX|240",
     "RSI|60",
     "RSI|240",
+    "ADX+DI|60",
+    "ADX-DI|60",
 ]
 
 

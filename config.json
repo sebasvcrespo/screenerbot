@@ -14,7 +14,8 @@
         "atr_1h_pct": { "min": 2 },
         "adx_1h": { "min": 25, "max": 45 },
         "adx_4h": { "min": 15, "max": 25 },
-        "rsi_1h": { "min": 54, "max": 64 }
+        "rsi_1h": { "min": 54, "max": 64 },
+        "di_comparison_1h": "plus_gt_minus"
       }
     },
     "short": {
@@ -27,7 +28,8 @@
         "atr_1h_pct": { "min": 2 },
         "rsi_1h": { "min": 33, "max": 45 },
         "adx_1h": { "min": 25, "max": 35 },
-        "adx_4h": { "min": 15, "max": 25 }
+        "adx_4h": { "min": 15, "max": 25 },
+        "di_comparison_1h": "minus_gt_plus"
       }
     }
   },

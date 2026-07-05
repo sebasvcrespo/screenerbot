@@ -35,6 +35,18 @@ def _get_filter_value(row, filter_name):
 
 def passes_filters(row, filters):
     for filter_name, limits in filters.items():
+        if filter_name == "di_comparison_1h":
+            di_plus = row.get("ADX+DI|60")
+            di_minus = row.get("ADX-DI|60")
+            if di_plus is None or di_minus is None:
+                logger.warning("Filter 'di_comparison_1h': D+/D- data not available, skipping")
+                continue
+            if limits == "plus_gt_minus" and di_plus <= di_minus:
+                return False
+            if limits == "minus_gt_plus" and di_minus <= di_plus:
+                return False
+            continue
+
         value = _get_filter_value(row, filter_name)
         if value is None:
             if filter_name not in _warned_filters:
