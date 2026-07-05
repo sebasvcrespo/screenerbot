@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.pyo
+*.txt
+logerror.txt
+logprueba.txt
