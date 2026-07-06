@@ -5,3 +5,4 @@ __pycache__/
 logerror.txt
 logprueba.txt
 .env
+state_cache.json

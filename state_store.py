@@ -2,6 +2,8 @@ import json
 import os
 import requests
 
+STATE_FILE = "state_cache.json"
+
 _rest_url = None
 _rest_token = None
 
@@ -30,15 +32,32 @@ def _request(method, path, body=None):
         return None
 
 
+def _file_store():
+    try:
+        with open(STATE_FILE, "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def _file_save(data):
+    with open(STATE_FILE, "w") as f:
+        json.dump(data, f)
+
+
 def _get(key):
     result = _request("GET", f"/get/{key}")
     if result and "result" in result:
         return result["result"]
-    return None
+    store = _file_store()
+    return store.get(key)
 
 
 def _set(key, value):
     _request("POST", f"/set/{key}", body=str(value))
+    store = _file_store()
+    store[key] = value
+    _file_save(store)
 
 
 def get_offset():
