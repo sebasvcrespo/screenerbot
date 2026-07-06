@@ -78,3 +78,21 @@ def get_exchange_states():
 
 def save_exchange_states(states):
     _set("exchange_states", json.dumps(states))
+
+
+def get_scan_interval():
+    val = _get("scan_interval")
+    return int(val) if val else None
+
+
+def save_scan_interval(minutes):
+    _set("scan_interval", str(minutes))
+
+
+def get_paused_states():
+    val = _get("paused_states")
+    return json.loads(val) if val else None
+
+
+def save_paused_states(states):
+    _set("paused_states", json.dumps(states))

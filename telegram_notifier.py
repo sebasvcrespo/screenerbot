@@ -56,7 +56,7 @@ def check_commands(bot_token, offset):
             return offset, []
 
         data = resp.json()
-        toggles = []
+        actions = []
         last_id = offset
 
         for update in data.get("result", []):
@@ -66,7 +66,39 @@ def check_commands(bot_token, offset):
             chat_id_msg = msg.get("chat", {}).get("id")
 
             if text == "/start":
-                send_message(bot_token, chat_id_msg, f"Bot activo. Tu chat_id es: {chat_id_msg}")
+                send_message(bot_token, chat_id_msg,
+                             f"Bot activo. Tu chat_id es: {chat_id_msg}")
+                continue
+
+            if text == "/help":
+                actions.append({"type": "help", "chat_id": chat_id_msg})
+                continue
+
+            if text == "/estado":
+                actions.append({"type": "status", "chat_id": chat_id_msg})
+                continue
+
+            if text == "/pausar":
+                actions.append({"type": "pause", "chat_id": chat_id_msg})
+                continue
+
+            if text == "/reanudar":
+                actions.append({"type": "resume", "chat_id": chat_id_msg})
+                continue
+
+            if text.startswith("/interval "):
+                parts = text.split()
+                if len(parts) == 2:
+                    try:
+                        mins = int(parts[1])
+                        if mins > 0:
+                            actions.append({"type": "interval", "minutes": mins, "chat_id": chat_id_msg})
+                        else:
+                            send_message(bot_token, chat_id_msg,
+                                         "❌ El intervalo debe ser mayor a 0")
+                    except ValueError:
+                        send_message(bot_token, chat_id_msg,
+                                     "❌ Formato: /interval <minutos> (ej: /interval 10)")
                 continue
 
             if text.startswith("/abrir ") or text.startswith("/cerrar "):
@@ -74,9 +106,10 @@ def check_commands(bot_token, offset):
                 if len(parts) == 2:
                     exchange = parts[1].upper()
                     comando = "abierto" if parts[0] == "/abrir" else "cerrado"
-                    toggles.append((exchange, comando, chat_id_msg))
+                    actions.append({"type": "toggle", "exchange": exchange,
+                                    "state": comando, "chat_id": chat_id_msg})
 
-        return last_id, toggles
+        return last_id, actions
     except Exception as e:
         print(f"Error checking commands: {e}")
         return offset, []

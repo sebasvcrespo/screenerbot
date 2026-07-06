@@ -10,7 +10,16 @@ from dotenv import load_dotenv
 from screener_client import query_screener
 from detector import passes_filters
 from telegram_notifier import send_alert, send_message, check_commands
-from state_store import get_offset, save_offset, get_exchange_states, save_exchange_states
+from state_store import (
+    get_offset,
+    save_offset,
+    get_exchange_states,
+    save_exchange_states,
+    get_scan_interval,
+    save_scan_interval,
+    get_paused_states,
+    save_paused_states,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -20,6 +29,19 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 CONFIG_FILE = "config.json"
+DEFAULT_INTERVAL = 5
+
+HELP_TEXT = """\
+Comandos disponibles:
+/start - Muestra tu chat_id
+/help - Esta ayuda
+/abrir <exchange> - Activa alertas (ej: /abrir bitget)
+/cerrar <exchange> - Desactiva alertas (ej: /cerrar pionex)
+/interval <minutos> - Cambia frecuencia de escaneo
+/estado - Muestra configuraci\u00f3n actual
+/pausar - Pausa todas las alertas
+/reanudar - Reanuda alertas\
+"""
 
 PORT = int(os.environ.get("PORT", 10000))
 
@@ -44,6 +66,15 @@ def run_health_server():
 def load_config():
     with open(CONFIG_FILE, "r") as f:
         return json.load(f)
+
+
+def format_status(exchanges, interval):
+    lines = ["\U0001f4ca Estado actual", "Exchanges:"]
+    for ex, st in sorted(exchanges.items()):
+        icon = "\u2705" if st == "abierto" else "\u274c"
+        lines.append(f"  {icon} {ex}: {st}")
+    lines.append(f"Intervalo: {interval} min")
+    return "\n".join(lines)
 
 
 def format_indicators(row, screener_config):
@@ -97,17 +128,53 @@ def main():
             exchanges = {"BITGET": "abierto", "PIONEX": "abierto"}
 
     offset = get_offset()
-    new_offset, toggles = check_commands(bot_token, offset)
+    new_offset, actions = check_commands(bot_token, offset)
 
-    for exchange, estado, chat_origin in toggles:
-        if exchange in exchanges:
-            exchanges[exchange] = estado
-            logger.info("Comando: %s → %s", exchange, estado)
-        else:
-            send_message(
-                bot_token, chat_origin or chat_id,
-                f"\u274c Exchange '{exchange}' no reconocido"
-            )
+    for action in actions:
+        t = action["type"]
+        chat_origin = action["chat_id"]
+        if t == "toggle":
+            exchange = action["exchange"]
+            estado = action["state"]
+            if exchange in exchanges:
+                exchanges[exchange] = estado
+                logger.info("Comando: %s \u2192 %s", exchange, estado)
+            else:
+                send_message(
+                    bot_token, chat_origin or chat_id,
+                    f"\u274c Exchange '{exchange}' no reconocido"
+                )
+        elif t == "interval":
+            mins = action["minutes"]
+            save_scan_interval(mins)
+            send_message(bot_token, chat_origin,
+                         f"\u23f1 Intervalo cambiado a {mins} min")
+            logger.info("Intervalo cambiado a %d min", mins)
+        elif t == "help":
+            send_message(bot_token, chat_origin, HELP_TEXT)
+        elif t == "status":
+            interval = get_scan_interval() or DEFAULT_INTERVAL
+            send_message(bot_token, chat_origin,
+                         format_status(exchanges, interval))
+        elif t == "pause":
+            save_paused_states(exchanges)
+            for ex in exchanges:
+                exchanges[ex] = "cerrado"
+            save_exchange_states(exchanges)
+            send_message(bot_token, chat_origin,
+                         "\u23f8 Alertas pausadas")
+            logger.info("Alertas pausadas")
+        elif t == "resume":
+            saved = get_paused_states()
+            if saved:
+                exchanges.update(saved)
+                save_exchange_states(exchanges)
+                send_message(bot_token, chat_origin,
+                             "\u25b6\ufe0f Alertas reanudadas")
+                logger.info("Alertas reanudadas")
+            else:
+                send_message(bot_token, chat_origin,
+                             "\u26a0\ufe0f No hay estado previo guardado")
 
     save_offset(new_offset)
     save_exchange_states(exchanges)
@@ -191,5 +258,6 @@ if __name__ == "__main__":
         main()
         if not loop:
             break
-        logger.info("Esperando 5 minutos para el pr\u00f3ximo ciclo...")
-        time.sleep(300)
+        interval = get_scan_interval() or DEFAULT_INTERVAL
+        logger.info("Esperando %d minutos para el pr\u00f3ximo ciclo...", interval)
+        time.sleep(interval * 60)
