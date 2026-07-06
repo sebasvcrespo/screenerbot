@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 
+from dotenv import load_dotenv
 from screener_client import query_screener
 from detector import passes_filters
 from telegram_notifier import send_alert, send_message, check_commands
@@ -49,6 +50,8 @@ def format_indicators(row, screener_config):
 
 def main():
     logger.info("=== TradingView Screener Agent ===")
+
+    load_dotenv()
 
     bot_token = os.environ.get("BOT_TOKEN")
     chat_id = os.environ.get("CHAT_ID")
