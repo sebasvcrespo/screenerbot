@@ -56,6 +56,9 @@ def main():
         logger.error("Faltan variables de entorno: BOT_TOKEN y CHAT_ID")
         sys.exit(1)
 
+    if isinstance(chat_id, str) and chat_id.lstrip("-").isdigit():
+        chat_id = int(chat_id)
+
     try:
         config = load_config()
     except Exception as e:

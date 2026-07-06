@@ -1,4 +1,8 @@
+import logging
+
 import requests
+
+logger = logging.getLogger(__name__)
 
 TELEGRAM_API_URL = "https://api.telegram.org/bot{token}/sendMessage"
 TELEGRAM_GET_UPDATES = "https://api.telegram.org/bot{token}/getUpdates"
@@ -21,6 +25,10 @@ def send_alert(bot_token, chat_id, screener_name, screener_emoji, pair, exchange
         "chat_id": chat_id,
         "text": text,
     }, timeout=15)
+
+    if not resp.ok:
+        logger.error("Telegram respondio con %d: %s", resp.status_code, resp.json())
+
     resp.raise_for_status()
     return resp.json()
 
@@ -56,6 +64,10 @@ def check_commands(bot_token, offset):
             msg = update.get("message", {})
             text = msg.get("text", "").strip().lower()
             chat_id_msg = msg.get("chat", {}).get("id")
+
+            if text == "/start":
+                send_message(bot_token, chat_id_msg, f"Bot activo. Tu chat_id es: {chat_id_msg}")
+                continue
 
             if text.startswith("/abrir ") or text.startswith("/cerrar "):
                 parts = text.split()
