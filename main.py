@@ -103,9 +103,16 @@ def main():
 
     logger.info("Obtenidos %d pares", len(rows))
 
+    ex_counts = {}
+    for r in rows:
+        ex = r.get("exchange", "?")
+        ex_counts[ex] = ex_counts.get(ex, 0) + 1
+
+    screeners_alerts = {}
+
     for screener_key, screener_cfg in config["screeners"].items():
         logger.info("Filtrando %s...", screener_cfg["name"])
-        count = 0
+        alerts_by_ex = {}
         for row in rows:
             if passes_filters(row, screener_cfg["filters"]):
                 pair = row.get("name", "?")
@@ -127,9 +134,22 @@ def main():
                 except Exception as e:
                     logger.error("Error enviando alerta: %s", e)
 
-                count += 1
+                alerts_by_ex[exchange] = alerts_by_ex.get(exchange, 0) + 1
 
-        logger.info("%s: %d alertas enviadas", screener_cfg["name"], count)
+        screeners_alerts[screener_key] = alerts_by_ex
+        total = sum(alerts_by_ex.values())
+        logger.info("%s: %d alertas enviadas", screener_cfg["name"], total)
+
+    lines = ["✅ Ciclo completado", f"Pares evaluados: {len(rows)}"]
+    for ex, n in sorted(ex_counts.items()):
+        lines.append(f"  {ex}: {n}")
+    for sk, sc in config["screeners"].items():
+        ac = screeners_alerts.get(sk, {})
+        total = sum(ac.values())
+        lines.append(f"{sc.get('emoji', '')} {sc['name']}: {total} alertas")
+        for ex, n in sorted(ac.items()):
+            lines.append(f"  {ex}: {n}")
+    send_message(bot_token, chat_id, "\n".join(lines))
 
     logger.info("Ciclo completado.")
 
