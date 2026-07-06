@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import sys
+import time
 
 from dotenv import load_dotenv
 from screener_client import query_screener
@@ -158,4 +159,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    loop = "--loop" in sys.argv
+    while True:
+        main()
+        if not loop:
+            break
+        logger.info("Esperando 5 minutos para el próximo ciclo...")
+        time.sleep(300)
