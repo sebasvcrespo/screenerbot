@@ -1,8 +1,10 @@
-import json
+﻿import json
 import logging
 import os
 import sys
 import time
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 from dotenv import load_dotenv
 from screener_client import query_screener
@@ -18,6 +20,25 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 CONFIG_FILE = "config.json"
+
+PORT = int(os.environ.get("PORT", 10000))
+
+
+class HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain")
+        self.end_headers()
+        self.wfile.write(b"OK")
+
+    def log_message(self, format, *args):
+        logger.info("HTTP: %s", format % args)
+
+
+def run_health_server():
+    server = HTTPServer(("0.0.0.0", PORT), HealthHandler)
+    logger.info("Health server listening on port %d", PORT)
+    server.serve_forever()
 
 
 def load_config():
@@ -85,7 +106,7 @@ def main():
         else:
             send_message(
                 bot_token, chat_origin or chat_id,
-                f"❌ Exchange '{exchange}' no reconocido"
+                f"\u274c Exchange '{exchange}' no reconocido"
             )
 
     save_offset(new_offset)
@@ -144,7 +165,7 @@ def main():
         total = sum(alerts_by_ex.values())
         logger.info("%s: %d alertas enviadas", screener_cfg["name"], total)
 
-    lines = ["✅ Ciclo completado", f"Pares evaluados: {len(rows)}"]
+    lines = ["\u2705 Ciclo completado", f"Pares evaluados: {len(rows)}"]
     for ex, n in sorted(ex_counts.items()):
         lines.append(f"  {ex}: {n}")
     for sk, sc in config["screeners"].items():
@@ -159,10 +180,16 @@ def main():
 
 
 if __name__ == "__main__":
-    loop = "--loop" in sys.argv
+    if "--server" in sys.argv:
+        threading.Thread(target=run_health_server, daemon=True).start()
+        logger.info("Modo servidor iniciado (health check + loop)")
+        loop = True
+    else:
+        loop = "--loop" in sys.argv
+
     while True:
         main()
         if not loop:
             break
-        logger.info("Esperando 5 minutos para el próximo ciclo...")
+        logger.info("Esperando 5 minutos para el pr\u00f3ximo ciclo...")
         time.sleep(300)

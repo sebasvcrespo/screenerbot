@@ -1,0 +1,15 @@
+﻿services:
+  - type: web
+    name: tradingview-screener
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py --server
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: CHAT_ID
+        sync: false
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
