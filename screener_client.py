@@ -11,11 +11,7 @@ TV_SCREENER_URL = "https://scanner.tradingview.com/crypto/scan"
 
 
 class ScreenerBlockedError(Exception):
-    """Se lanza cuando todas las llamadas fallan con HTTP 429 (bloqueo Cloudflare)."""
-
-
-class ScreenerLimitError(Exception):
-    """Se lanza cuando el límite solicitado es rechazado por TradingView."""
+    """Se lanza cuando la IP está bloqueada por Cloudflare (HTTP 429)."""
 
 
 HEADERS = {
@@ -26,9 +22,6 @@ HEADERS = {
     "Accept": "application/json",
     "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
 }
-
-MAX_RETRIES = 3
-BACKOFF_SECONDS = [30, 60, 120]
 
 _session = None
 
@@ -64,7 +57,7 @@ COLUMNS = [
 ]
 
 
-def query_screener(exchanges, limit=100, offset=0, jitter=True):
+def query_screener(exchanges):
     filter_conditions = [
         {"left": "exchange", "operation": "in_range", "right": exchanges},
         {"left": "name", "operation": "match", "right": "USDT.P"},
@@ -78,47 +71,21 @@ def query_screener(exchanges, limit=100, offset=0, jitter=True):
         "columns": COLUMNS,
         "filter": filter_conditions,
         "sort": {"sortBy": "name", "sortOrder": "asc"},
-        "range": [offset, offset + limit]
+        "range": [0, 200]
     }
 
     sesion = _get_session()
 
-    if jitter:
-        jitter_secs = random.uniform(5, 15)
-        logger.debug("Jitter inicial: %.1fs", jitter_secs)
-        time.sleep(jitter_secs)
+    jitter_secs = random.uniform(1, 3)
+    time.sleep(jitter_secs)
 
-    for attempt in range(MAX_RETRIES + 1):
-        try:
-            resp = sesion.post(TV_SCREENER_URL, json=payload, timeout=30)
-        except Exception as e:
-            logger.error("Error de conexión: %s", e)
-            if attempt < MAX_RETRIES:
-                wait = BACKOFF_SECONDS[attempt]
-                time.sleep(wait)
-                continue
-            raise e
+    resp = sesion.post(TV_SCREENER_URL, json=payload, timeout=30)
 
-        if resp.status_code == 429 and attempt < MAX_RETRIES:
-            wait = BACKOFF_SECONDS[attempt]
-            logger.warning("HTTP 429 — reintentando en %ds (intento %d/%d)", wait, attempt + 1, MAX_RETRIES)
-            time.sleep(wait)
-            continue
+    if resp.status_code == 429:
+        raise ScreenerBlockedError("IP bloqueada por Cloudflare (HTTP 429)")
 
-        if resp.status_code == 429:
-            raise ScreenerBlockedError(
-                f"Todas las llamadas fallaron con 429 tras {MAX_RETRIES} reintentos"
-            )
-        
-        # Verificar si el límite fue rechazado (posible error 400 o 500)
-        if resp.status_code >= 400 and resp.status_code != 429:
-            logger.warning("Error HTTP %d con límite=%d", resp.status_code, limit)
-            # Si el error es por límite alto, lanzar excepción específica
-            if limit > 100 and resp.status_code in [400, 500]:
-                raise ScreenerLimitError(f"Límite {limit} rechazado por TradingView (HTTP {resp.status_code})")
-        
-        resp.raise_for_status()
-        return _parse_response(resp.json())
+    resp.raise_for_status()
+    return _parse_response(resp.json())
 
 
 def _parse_response(data):

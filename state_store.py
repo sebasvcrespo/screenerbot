@@ -118,15 +118,6 @@ def set_blocked_until(timestamp):
                    int((timestamp - time_module.time()) / 60))
 
 
-def get_scan_method():
-    val = _get("scan_method")
-    return val if val else "try_200_first"  # default: intentar 200 primero
-
-
-def save_scan_method(method):
-    _set("scan_method", method)
-
-
 def clear_blocked_until():
     _set("blocked_until", "0")
     logger.info("Bloqueo Cloudflare liberado")
