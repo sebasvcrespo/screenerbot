@@ -14,6 +14,10 @@ class ScreenerBlockedError(Exception):
     """Se lanza cuando todas las llamadas fallan con HTTP 429 (bloqueo Cloudflare)."""
 
 
+class ScreenerLimitError(Exception):
+    """Se lanza cuando el límite solicitado es rechazado por TradingView."""
+
+
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
@@ -85,7 +89,15 @@ def query_screener(exchanges, limit=100, offset=0, jitter=True):
         time.sleep(jitter_secs)
 
     for attempt in range(MAX_RETRIES + 1):
-        resp = sesion.post(TV_SCREENER_URL, json=payload, timeout=30)
+        try:
+            resp = sesion.post(TV_SCREENER_URL, json=payload, timeout=30)
+        except Exception as e:
+            logger.error("Error de conexión: %s", e)
+            if attempt < MAX_RETRIES:
+                wait = BACKOFF_SECONDS[attempt]
+                time.sleep(wait)
+                continue
+            raise e
 
         if resp.status_code == 429 and attempt < MAX_RETRIES:
             wait = BACKOFF_SECONDS[attempt]
@@ -97,6 +109,14 @@ def query_screener(exchanges, limit=100, offset=0, jitter=True):
             raise ScreenerBlockedError(
                 f"Todas las llamadas fallaron con 429 tras {MAX_RETRIES} reintentos"
             )
+        
+        # Verificar si el límite fue rechazado (posible error 400 o 500)
+        if resp.status_code >= 400 and resp.status_code != 429:
+            logger.warning("Error HTTP %d con límite=%d", resp.status_code, limit)
+            # Si el error es por límite alto, lanzar excepción específica
+            if limit > 100 and resp.status_code in [400, 500]:
+                raise ScreenerLimitError(f"Límite {limit} rechazado por TradingView (HTTP {resp.status_code})")
+        
         resp.raise_for_status()
         return _parse_response(resp.json())
 

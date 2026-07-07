@@ -7,7 +7,7 @@ import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 from dotenv import load_dotenv
-from screener_client import query_screener, ScreenerBlockedError
+from screener_client import query_screener, ScreenerBlockedError, ScreenerLimitError
 from detector import passes_filters
 from telegram_notifier import send_alert, send_message, check_commands
 from state_store import (
@@ -22,6 +22,8 @@ from state_store import (
     get_blocked_until,
     set_blocked_until,
     clear_blocked_until,
+    get_scan_method,
+    save_scan_method,
 )
 
 logging.basicConfig(
@@ -208,15 +210,56 @@ def main():
     logger.info("Escaneando %s...", activos)
 
     rows = []
-    try:
-        rows = query_screener(activos, limit=100, jitter=True)
-        clear_blocked_until()
-    except ScreenerBlockedError:
-        set_blocked_until(time.time() + 900)
-        return
-    except Exception as e:
-        logger.error("Error en screener: %s", e)
-        return
+    scan_method = get_scan_method()
+    
+    if scan_method == "single_200" or scan_method == "try_200_first":
+        logger.info("Método: intentando obtener 200 pares de golpe")
+        try:
+            rows = query_screener(activos, limit=200, jitter=True)
+            clear_blocked_until()
+            save_scan_method("single_200")
+            logger.info("✓ Éxito: 200 pares obtenidos con una sola llamada")
+        except ScreenerLimitError:
+            logger.warning("✗ Límite 200 rechazado, cambiando a método dividido")
+            save_scan_method("split_100_100")
+            # Continuar con método dividido
+        except ScreenerBlockedError:
+            set_blocked_until(time.time() + 900)
+            return
+        except Exception as e:
+            logger.error("Error inesperado con límite 200: %s", e)
+            save_scan_method("try_200_first")  # Reintentar próxima vez
+            return
+    
+    # Si no obtuvo filas con single_200 o el método es split_100_100
+    if not rows and scan_method in ["split_100_100", "try_200_first"]:
+        logger.info("Método: dividiendo en 2 llamadas (100+100) con 45s de separación")
+        try:
+            if len(activos) == 2:
+                ex1, ex2 = activos[0], activos[1]
+                rows1 = query_screener([ex1], limit=100, jitter=True)
+                logger.info("Obtenidos %d pares de %s", len(rows1), ex1)
+                
+                # Espera más larga para evitar bloqueo
+                logger.info("Esperando 45 segundos antes de segunda llamada...")
+                time.sleep(45)
+                
+                rows2 = query_screener([ex2], limit=100, jitter=False)
+                logger.info("Obtenidos %d pares de %s", len(rows2), ex2)
+                rows = rows1 + rows2
+                save_scan_method("split_100_100")
+            else:
+                # Si solo hay un exchange activo
+                rows = query_screener(activos, limit=100, jitter=True)
+                save_scan_method("single_100")
+            
+            clear_blocked_until()
+        except ScreenerBlockedError:
+            set_blocked_until(time.time() + 900)
+            return
+        except Exception as e:
+            logger.error("Error en screener dividido: %s", e)
+            return
 
     logger.info("Obtenidos %d pares en total", len(rows))
 
