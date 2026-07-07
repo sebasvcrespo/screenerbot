@@ -29,7 +29,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 CONFIG_FILE = "config.json"
-DEFAULT_INTERVAL = 5
+DEFAULT_INTERVAL = 10
 
 HELP_TEXT = """\
 Comandos disponibles:

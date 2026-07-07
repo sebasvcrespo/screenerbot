@@ -1,19 +1,41 @@
 import logging
+import random
 import time
 
 import requests
 
 logger = logging.getLogger(__name__)
 
+TV_BASE_URL = "https://www.tradingview.com"
 TV_SCREENER_URL = "https://scanner.tradingview.com/crypto/scan"
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    "Origin": "https://www.tradingview.com",
+    "Referer": "https://www.tradingview.com/",
+    "Accept": "application/json",
+    "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
 }
 
 MAX_RETRIES = 3
 BACKOFF_SECONDS = [30, 60, 120]
+
+_session = None
+
+
+def _get_session():
+    global _session
+    if _session is not None:
+        return _session
+    _session = requests.Session()
+    _session.headers.update(HEADERS)
+    try:
+        _session.get(TV_BASE_URL, timeout=15)
+        logger.info("Sesión TradingView iniciada (cookies obtenidas)")
+    except Exception as e:
+        logger.warning("No se pudieron obtener cookies de TradingView: %s", e)
+    return _session
 
 COLUMNS = [
     "name",
@@ -50,8 +72,14 @@ def query_screener(exchanges):
         "range": [0, 200]
     }
 
+    sesion = _get_session()
+
+    jitter = random.uniform(5, 15)
+    logger.debug("Jitter inicial: %.1fs", jitter)
+    time.sleep(jitter)
+
     for attempt in range(MAX_RETRIES + 1):
-        resp = requests.post(TV_SCREENER_URL, json=payload, headers=HEADERS, timeout=30)
+        resp = sesion.post(TV_SCREENER_URL, json=payload, timeout=30)
 
         if resp.status_code == 429 and attempt < MAX_RETRIES:
             wait = BACKOFF_SECONDS[attempt]
