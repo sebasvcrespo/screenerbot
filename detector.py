@@ -58,8 +58,10 @@ def passes_filters(row, filters):
         max_val = limits.get("max")
 
         if min_val is not None and value < min_val:
+            logger.debug("No pasa %s: valor=%.4f < min=%.4f", filter_name, value, min_val)
             return False
         if max_val is not None and value > max_val:
+            logger.debug("No pasa %s: valor=%.4f > max=%.4f", filter_name, value, max_val)
             return False
 
     return True
