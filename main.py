@@ -174,8 +174,13 @@ def main():
                              "\u25b6\ufe0f Alertas reanudadas")
                 logger.info("Alertas reanudadas")
             else:
+                for ex, st in config.get("exchanges", {}).items():
+                    if ex in exchanges and st == "abierto":
+                        exchanges[ex] = "abierto"
+                save_exchange_states(exchanges)
                 send_message(bot_token, chat_origin,
-                             "\u26a0\ufe0f No hay estado previo guardado")
+                             "\u25b6\ufe0f Alertas reanudadas (desde config por defecto)")
+                logger.info("Alertas reanudadas desde config por defecto")
 
     save_offset(new_offset)
     save_exchange_states(exchanges)
@@ -190,12 +195,33 @@ def main():
 
     rows = []
     if len(activos) == 2:
+        ex1, ex2 = activos[0], activos[1]
         try:
-            rows1 = query_screener([activos[0]], limit=100, jitter=True)
-            logger.info("Obtenidos %d pares de %s", len(rows1), activos[0])
+            rows1 = query_screener([ex1], limit=100, jitter=True)
+            logger.info("Obtenidos %d pares de %s", len(rows1), ex1)
             time.sleep(10)
-            rows2 = query_screener([activos[1]], limit=100, jitter=False)
-            logger.info("Obtenidos %d pares de %s", len(rows2), activos[1])
+
+            seen = {r.get("name") for r in rows1 if r.get("name")}
+            rows2 = []
+            offset = 0
+            need = 100
+            while need > 0:
+                batch = query_screener([ex2], limit=need, offset=offset, jitter=False)
+                if not batch:
+                    break
+                for row in batch:
+                    name = row.get("name", "")
+                    if name not in seen and len(rows2) < 100:
+                        rows2.append(row)
+                        seen.add(name)
+                        need = 100 - len(rows2)
+                if need > 0:
+                    offset += len(batch)
+                    if len(batch) < need:
+                        break
+                    time.sleep(3)
+
+            logger.info("Obtenidos %d pares únicos de %s (tras dedup)", len(rows2), ex2)
             rows = rows1 + rows2
         except Exception as e:
             logger.error("Error en screener: %s", e)

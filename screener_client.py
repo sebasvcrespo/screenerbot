@@ -55,7 +55,7 @@ COLUMNS = [
 ]
 
 
-def query_screener(exchanges, limit=200, jitter=True):
+def query_screener(exchanges, limit=200, offset=0, jitter=True):
     filter_conditions = [
         {"left": "exchange", "operation": "in_range", "right": exchanges},
         {"left": "name", "operation": "match", "right": "USDT.P"},
@@ -69,7 +69,7 @@ def query_screener(exchanges, limit=200, jitter=True):
         "columns": COLUMNS,
         "filter": filter_conditions,
         "sort": {"sortBy": "name", "sortOrder": "asc"},
-        "range": [0, limit]
+        "range": [offset, offset + limit]
     }
 
     sesion = _get_session()
