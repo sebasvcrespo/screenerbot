@@ -55,7 +55,7 @@ COLUMNS = [
 ]
 
 
-def query_screener(exchanges):
+def query_screener(exchanges, limit=200, jitter=True):
     filter_conditions = [
         {"left": "exchange", "operation": "in_range", "right": exchanges},
         {"left": "name", "operation": "match", "right": "USDT.P"},
@@ -69,14 +69,15 @@ def query_screener(exchanges):
         "columns": COLUMNS,
         "filter": filter_conditions,
         "sort": {"sortBy": "name", "sortOrder": "asc"},
-        "range": [0, 200]
+        "range": [0, limit]
     }
 
     sesion = _get_session()
 
-    jitter = random.uniform(5, 15)
-    logger.debug("Jitter inicial: %.1fs", jitter)
-    time.sleep(jitter)
+    if jitter:
+        jitter_secs = random.uniform(5, 15)
+        logger.debug("Jitter inicial: %.1fs", jitter_secs)
+        time.sleep(jitter_secs)
 
     for attempt in range(MAX_RETRIES + 1):
         resp = sesion.post(TV_SCREENER_URL, json=payload, timeout=30)

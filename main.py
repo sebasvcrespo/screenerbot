@@ -188,13 +188,26 @@ def main():
 
     logger.info("Escaneando %s...", activos)
 
-    try:
-        rows = query_screener(activos)
-    except Exception as e:
-        logger.error("Error en screener: %s", e)
-        return
+    rows = []
+    if len(activos) == 2:
+        try:
+            rows1 = query_screener([activos[0]], limit=100, jitter=True)
+            logger.info("Obtenidos %d pares de %s", len(rows1), activos[0])
+            time.sleep(10)
+            rows2 = query_screener([activos[1]], limit=100, jitter=False)
+            logger.info("Obtenidos %d pares de %s", len(rows2), activos[1])
+            rows = rows1 + rows2
+        except Exception as e:
+            logger.error("Error en screener: %s", e)
+            return
+    else:
+        try:
+            rows = query_screener(activos, limit=200, jitter=True)
+        except Exception as e:
+            logger.error("Error en screener: %s", e)
+            return
 
-    logger.info("Obtenidos %d pares", len(rows))
+    logger.info("Obtenidos %d pares en total", len(rows))
 
     ex_counts = {}
     for r in rows:
