@@ -9,6 +9,11 @@ logger = logging.getLogger(__name__)
 TV_BASE_URL = "https://www.tradingview.com"
 TV_SCREENER_URL = "https://scanner.tradingview.com/crypto/scan"
 
+
+class ScreenerBlockedError(Exception):
+    """Se lanza cuando todas las llamadas fallan con HTTP 429 (bloqueo Cloudflare)."""
+
+
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
@@ -88,6 +93,10 @@ def query_screener(exchanges, limit=200, offset=0, jitter=True):
             time.sleep(wait)
             continue
 
+        if resp.status_code == 429:
+            raise ScreenerBlockedError(
+                f"Todas las llamadas fallaron con 429 tras {MAX_RETRIES} reintentos"
+            )
         resp.raise_for_status()
         return _parse_response(resp.json())
 

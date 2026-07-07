@@ -1,6 +1,11 @@
 import json
+import logging
 import os
+import time as time_module
+
 import requests
+
+logger = logging.getLogger(__name__)
 
 STATE_FILE = "state_cache.json"
 
@@ -28,7 +33,11 @@ def _request(method, path, body=None):
             resp = requests.post(url, headers=headers, data=body, timeout=10)
         resp.raise_for_status()
         return resp.json()
-    except Exception:
+    except requests.exceptions.RequestException as e:
+        logger.warning("Redis %s %s falló: %s", method, path, e)
+        return None
+    except Exception as e:
+        logger.warning("Redis %s %s error inesperado: %s", method, path, e)
         return None
 
 
@@ -96,3 +105,19 @@ def get_paused_states():
 
 def save_paused_states(states):
     _set("paused_states", json.dumps(states))
+
+
+def get_blocked_until():
+    val = _get("blocked_until")
+    return float(val) if val else 0.0
+
+
+def set_blocked_until(timestamp):
+    _set("blocked_until", str(timestamp))
+    logger.warning("IP bloqueada por Cloudflare — próximo intento en %d min",
+                   int((timestamp - time_module.time()) / 60))
+
+
+def clear_blocked_until():
+    _set("blocked_until", "0")
+    logger.info("Bloqueo Cloudflare liberado")

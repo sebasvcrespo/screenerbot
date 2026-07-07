@@ -43,7 +43,7 @@ def send_message(bot_token, chat_id, text):
         resp.raise_for_status()
         return resp.json()
     except Exception as e:
-        print(f"Error sending message: {e}")
+        logger.error("Error sending message: %s", e)
         return None
 
 
@@ -108,8 +108,11 @@ def check_commands(bot_token, offset):
                     comando = "abierto" if parts[0] == "/abrir" else "cerrado"
                     actions.append({"type": "toggle", "exchange": exchange,
                                     "state": comando, "chat_id": chat_id_msg})
+                else:
+                    send_message(bot_token, chat_id_msg,
+                                 "❌ Formato: /abrir <exchange> o /cerrar <exchange>")
 
         return last_id, actions
     except Exception as e:
-        print(f"Error checking commands: {e}")
+        logger.error("Error checking commands: %s", e)
         return offset, []

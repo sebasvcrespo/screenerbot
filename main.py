@@ -7,7 +7,7 @@ import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 from dotenv import load_dotenv
-from screener_client import query_screener
+from screener_client import query_screener, ScreenerBlockedError
 from detector import passes_filters
 from telegram_notifier import send_alert, send_message, check_commands
 from state_store import (
@@ -19,6 +19,9 @@ from state_store import (
     save_scan_interval,
     get_paused_states,
     save_paused_states,
+    get_blocked_until,
+    set_blocked_until,
+    clear_blocked_until,
 )
 
 logging.basicConfig(
@@ -121,11 +124,22 @@ def main():
         logger.error("Error cargando config.json: %s", e)
         sys.exit(1)
 
+    if get_scan_interval() is None:
+        save_scan_interval(DEFAULT_INTERVAL)
+
     exchanges = get_exchange_states()
     if exchanges is None:
         exchanges = dict(config.get("exchanges", {}))
         if not exchanges:
             exchanges = {"BITGET": "abierto", "PIONEX": "abierto"}
+
+    blocked_until = get_blocked_until()
+    if blocked_until > time.time():
+        logger.warning(
+            "IP bloqueada por Cloudflare — saltando ciclo hasta las %s",
+            time.strftime("%H:%M:%S", time.localtime(blocked_until)),
+        )
+        return
 
     offset = get_offset()
     new_offset, actions = check_commands(bot_token, offset)
@@ -194,44 +208,24 @@ def main():
     logger.info("Escaneando %s...", activos)
 
     rows = []
-    if len(activos) == 2:
-        ex1, ex2 = activos[0], activos[1]
-        try:
+    try:
+        if len(activos) == 2:
+            ex1, ex2 = activos[0], activos[1]
             rows1 = query_screener([ex1], limit=100, jitter=True)
             logger.info("Obtenidos %d pares de %s", len(rows1), ex1)
             time.sleep(10)
-
-            seen = {r.get("name") for r in rows1 if r.get("name")}
-            rows2 = []
-            offset = 0
-            need = 100
-            while need > 0:
-                batch = query_screener([ex2], limit=need, offset=offset, jitter=False)
-                if not batch:
-                    break
-                for row in batch:
-                    name = row.get("name", "")
-                    if name not in seen and len(rows2) < 100:
-                        rows2.append(row)
-                        seen.add(name)
-                        need = 100 - len(rows2)
-                if need > 0:
-                    offset += len(batch)
-                    if len(batch) < need:
-                        break
-                    time.sleep(3)
-
-            logger.info("Obtenidos %d pares únicos de %s (tras dedup)", len(rows2), ex2)
+            rows2 = query_screener([ex2], limit=100, jitter=False)
+            logger.info("Obtenidos %d pares de %s", len(rows2), ex2)
             rows = rows1 + rows2
-        except Exception as e:
-            logger.error("Error en screener: %s", e)
-            return
-    else:
-        try:
+        else:
             rows = query_screener(activos, limit=200, jitter=True)
-        except Exception as e:
-            logger.error("Error en screener: %s", e)
-            return
+        clear_blocked_until()
+    except ScreenerBlockedError:
+        set_blocked_until(time.time() + 1800)
+        return
+    except Exception as e:
+        logger.error("Error en screener: %s", e)
+        return
 
     logger.info("Obtenidos %d pares en total", len(rows))
 
