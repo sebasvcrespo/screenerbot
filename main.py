@@ -167,7 +167,8 @@ def main():
         elif t == "resume":
             saved = get_paused_states()
             if saved:
-                exchanges.update(saved)
+                for ex in saved:
+                    exchanges[ex] = "abierto"
                 save_exchange_states(exchanges)
                 send_message(bot_token, chat_origin,
                              "\u25b6\ufe0f Alertas reanudadas")
