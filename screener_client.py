@@ -60,7 +60,7 @@ COLUMNS = [
 ]
 
 
-def query_screener(exchanges, limit=200, offset=0, jitter=True):
+def query_screener(exchanges, limit=100, offset=0, jitter=True):
     filter_conditions = [
         {"left": "exchange", "operation": "in_range", "right": exchanges},
         {"left": "name", "operation": "match", "right": "USDT.P"},

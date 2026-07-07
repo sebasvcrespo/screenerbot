@@ -209,16 +209,7 @@ def main():
 
     rows = []
     try:
-        if len(activos) == 2:
-            ex1, ex2 = activos[0], activos[1]
-            rows1 = query_screener([ex1], limit=100, jitter=True)
-            logger.info("Obtenidos %d pares de %s", len(rows1), ex1)
-            time.sleep(10)
-            rows2 = query_screener([ex2], limit=100, jitter=False)
-            logger.info("Obtenidos %d pares de %s", len(rows2), ex2)
-            rows = rows1 + rows2
-        else:
-            rows = query_screener(activos, limit=200, jitter=True)
+        rows = query_screener(activos, limit=100, jitter=True)
         clear_blocked_until()
     except ScreenerBlockedError:
         set_blocked_until(time.time() + 900)
