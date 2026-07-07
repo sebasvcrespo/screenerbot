@@ -221,7 +221,7 @@ def main():
             rows = query_screener(activos, limit=200, jitter=True)
         clear_blocked_until()
     except ScreenerBlockedError:
-        set_blocked_until(time.time() + 1800)
+        set_blocked_until(time.time() + 900)
         return
     except Exception as e:
         logger.error("Error en screener: %s", e)
