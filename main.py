@@ -8,6 +8,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 
 from dotenv import load_dotenv
 from screener_client import query_screener, ScreenerBlockedError
+from bitget_client import fetch_bitget_24h_changes
 from detector import passes_filters
 from telegram_notifier import send_alert, send_message, check_commands
 from state_store import (
@@ -219,6 +220,14 @@ def main():
         return
 
     logger.info("Obtenidos %d pares en total", len(rows))
+
+    bitget_changes = fetch_bitget_24h_changes()
+    if bitget_changes:
+        for row in rows:
+            name = row.get("name", "")
+            bitget_symbol = name.replace(".P", "")
+            if bitget_symbol in bitget_changes:
+                row["change"] = bitget_changes[bitget_symbol]
 
     ex_counts = {}
     for r in rows:
