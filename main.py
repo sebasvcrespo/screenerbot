@@ -8,7 +8,9 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 
 from dotenv import load_dotenv
 from screener_client import query_screener, ScreenerBlockedError
-from bitget_client import fetch_bitget_24h_changes
+from bitget_client import fetch_bitget_data
+from bitget_ohlcv import fetch_ohlcv, fetch_ohlcv_batch
+from indicators import calc_indicators_from_ohlcv, calc_1h_indicators, calc_4h_indicators, passes_1h_precheck
 from detector import passes_filters
 from telegram_notifier import send_alert, send_message, check_commands
 from state_store import (
@@ -221,13 +223,124 @@ def main():
 
     logger.info("Obtenidos %d pares en total", len(rows))
 
-    bitget_changes = fetch_bitget_24h_changes()
-    if bitget_changes:
-        for row in rows:
-            name = row.get("name", "")
-            bitget_symbol = name.replace(".P", "")
-            if bitget_symbol in bitget_changes:
-                row["change"] = bitget_changes[bitget_symbol]
+    bitget_data = fetch_bitget_data()
+
+    tv_symbols = set()
+    for row in rows:
+        name = row.get("name", "")
+        bitget_symbol = name.replace(".P", "")
+        tv_symbols.add(bitget_symbol)
+
+        if bitget_symbol in bitget_data:
+            bd = bitget_data[bitget_symbol]
+            if row.get("change") is None and "change" in bd:
+                row["change"] = bd["change"]
+            if row.get("volume") is None and "volume_usd" in bd:
+                row["volume"] = bd["volume_usd"]
+            if row.get("close") is None and "last_price" in bd:
+                row["close"] = bd["last_price"]
+
+    CRITICAL_INDICATORS = ["RSI|60", "ADX|60", "ADX+DI|60", "ADX-DI|60", "ATR|60", "ADX|240"]
+
+    pairs_need_ohlcv = []
+    for row in rows:
+        for col in CRITICAL_INDICATORS:
+            if row.get(col) is None:
+                pairs_need_ohlcv.append(row)
+                break
+
+    if pairs_need_ohlcv:
+        logger.info("Fetch OHLCV Bitget para %d pares con datos faltantes...", len(pairs_need_ohlcv))
+        for row in pairs_need_ohlcv:
+            symbol = row["name"].replace(".P", "")
+            candles_1h = fetch_ohlcv(symbol, "1H", 100)
+            candles_4h = fetch_ohlcv(symbol, "4H", 100)
+            if not candles_1h:
+                logger.warning("Sin OHLCV 1H para %s", symbol)
+                continue
+
+            calculated = calc_indicators_from_ohlcv(candles_1h, candles_4h)
+
+            if row.get("RSI|60") is None and "RSI|60" in calculated:
+                row["RSI|60"] = calculated["RSI|60"]
+            if row.get("ADX|60") is None and "ADX|60" in calculated:
+                row["ADX|60"] = calculated["ADX|60"]
+            if row.get("ADX+DI|60") is None and "ADX+DI|60" in calculated:
+                row["ADX+DI|60"] = calculated["ADX+DI|60"]
+            if row.get("ADX-DI|60") is None and "ADX-DI|60" in calculated:
+                row["ADX-DI|60"] = calculated["ADX-DI|60"]
+            if row.get("ATR|60") is None and "ATR|60" in calculated:
+                row["ATR|60"] = calculated["ATR|60"]
+            if row.get("ADX|240") is None and "ADX|240" in calculated:
+                row["ADX|240"] = calculated["ADX|240"]
+            if row.get("RSI|240") is None and "RSI|240" in calculated:
+                row["RSI|240"] = calculated["RSI|240"]
+            if row.get("change") is None and "change_24h_calc" in calculated:
+                row["change"] = calculated["change_24h_calc"]
+            if row.get("close") is None and "close_calc" in calculated:
+                row["close"] = calculated["close_calc"]
+
+            logger.info("OHLCV fallback %s completado", symbol)
+
+    bitget_only_pairs = []
+    for symbol, bd in bitget_data.items():
+        if symbol in tv_symbols:
+            continue
+        if not symbol.endswith("USDT"):
+            continue
+        vol = bd.get("volume_usd", 0)
+        if vol < 300000:
+            continue
+        change = bd.get("change", 0)
+        if change < -8 or change > 8:
+            continue
+        bitget_only_pairs.append((symbol, bd))
+
+    if bitget_only_pairs:
+        logger.info("Pares Bitget no en TradingView: %d (vol>300K, change -8/+8)", len(bitget_only_pairs))
+
+        symbols_1h = [s for s, _ in bitget_only_pairs]
+        logger.info("Fetch OHLCV 1H paralelo para %d pares...", len(symbols_1h))
+        batch_1h = fetch_ohlcv_batch(symbols_1h, "1H", 100, max_workers=10)
+
+        candidates = []
+        for symbol, bd in bitget_only_pairs:
+            candles_1h = batch_1h.get(symbol)
+            if not candles_1h:
+                continue
+            if not passes_1h_precheck(candles_1h):
+                continue
+            candidates.append((symbol, bd, candles_1h))
+
+        logger.info("Pares que pasan pre-check 1H: %d / %d", len(candidates), len(bitget_only_pairs))
+
+        if candidates:
+            symbols_4h = [s for s, _, _ in candidates]
+            logger.info("Fetch OHLCV 4H paralelo para %d candidates...", len(symbols_4h))
+            batch_4h = fetch_ohlcv_batch(symbols_4h, "4H", 100, max_workers=10)
+
+            for symbol, bd, candles_1h in candidates:
+                calc_1h = calc_1h_indicators(candles_1h)
+                candles_4h = batch_4h.get(symbol)
+                calc_4h = calc_4h_indicators(candles_4h) if candles_4h else {}
+
+                row = {
+                    "name": symbol + ".P",
+                    "exchange": "BITGET",
+                    "close": calc_1h.get("close_calc"),
+                    "change": bd.get("change"),
+                    "volume": bd.get("volume_usd"),
+                    "change_volume": None,
+                    "ATR|60": calc_1h.get("ATR|60"),
+                    "Volatility.D": None,
+                    "ADX|60": calc_1h.get("ADX|60"),
+                    "ADX|240": calc_4h.get("ADX|240"),
+                    "RSI|60": calc_1h.get("RSI|60"),
+                    "RSI|240": calc_4h.get("RSI|240"),
+                    "ADX+DI|60": calc_1h.get("ADX+DI|60"),
+                    "ADX-DI|60": calc_1h.get("ADX-DI|60"),
+                }
+                rows.append(row)
 
     ex_counts = {}
     for r in rows:

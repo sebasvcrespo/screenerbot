@@ -15,6 +15,8 @@ TV_COLUMN_MAP = {
 
 _warned_filters = set()
 
+SOFT_FILTERS = {"volume_change_24h"}
+
 
 def _get_filter_value(row, filter_name):
     if filter_name == "atr_1h_pct":
@@ -39,8 +41,8 @@ def passes_filters(row, filters):
             di_plus = row.get("ADX+DI|60")
             di_minus = row.get("ADX-DI|60")
             if di_plus is None or di_minus is None:
-                logger.warning("Filter 'di_comparison_1h': D+/D- data not available, skipping")
-                continue
+                logger.warning("Par %s RECHAZADO: filtro 'di_comparison_1h' sin datos D+/D-", row.get("name", "?"))
+                return False
             if limits == "plus_gt_minus" and di_plus <= di_minus:
                 return False
             if limits == "minus_gt_plus" and di_minus <= di_plus:
@@ -49,10 +51,10 @@ def passes_filters(row, filters):
 
         value = _get_filter_value(row, filter_name)
         if value is None:
-            if filter_name not in _warned_filters:
-                logger.warning("Filter '%s': no data available (column None), skipping", filter_name)
-                _warned_filters.add(filter_name)
-            continue
+            if filter_name in SOFT_FILTERS:
+                continue
+            logger.warning("Par %s RECHAZADO: filtro '%s' sin datos", row.get("name", "?"), filter_name)
+            return False
 
         min_val = limits.get("min")
         max_val = limits.get("max")
