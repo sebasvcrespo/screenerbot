@@ -282,65 +282,66 @@ def main():
 
             logger.info("OHLCV fallback %s completado", symbol)
 
-    bitget_only_pairs = []
-    for symbol, bd in bitget_data.items():
-        if symbol in tv_symbols:
-            continue
-        if not symbol.endswith("USDT"):
-            continue
-        vol = bd.get("volume_usd", 0)
-        if vol < 300000:
-            continue
-        change = bd.get("change", 0)
-        if change < -8 or change > 8:
-            continue
-        bitget_only_pairs.append((symbol, bd))
-
-    if bitget_only_pairs:
-        logger.info("Pares Bitget no en TradingView: %d (vol>300K, change -8/+8)", len(bitget_only_pairs))
-
-        symbols_1h = [s for s, _ in bitget_only_pairs]
-        logger.info("Fetch OHLCV 1H paralelo para %d pares...", len(symbols_1h))
-        batch_1h = fetch_ohlcv_batch(symbols_1h, "1H", 100, max_workers=10)
-
-        candidates = []
-        for symbol, bd in bitget_only_pairs:
-            candles_1h = batch_1h.get(symbol)
-            if not candles_1h:
+    if "BITGET" in activos:
+        bitget_only_pairs = []
+        for symbol, bd in bitget_data.items():
+            if symbol in tv_symbols:
                 continue
-            if not passes_1h_precheck(candles_1h):
+            if not symbol.endswith("USDT"):
                 continue
-            candidates.append((symbol, bd, candles_1h))
+            vol = bd.get("volume_usd", 0)
+            if vol < 300000:
+                continue
+            change = bd.get("change", 0)
+            if change < -8 or change > 8:
+                continue
+            bitget_only_pairs.append((symbol, bd))
 
-        logger.info("Pares que pasan pre-check 1H: %d / %d", len(candidates), len(bitget_only_pairs))
+        if bitget_only_pairs:
+            logger.info("Pares Bitget no en TradingView: %d (vol>300K, change -8/+8)", len(bitget_only_pairs))
 
-        if candidates:
-            symbols_4h = [s for s, _, _ in candidates]
-            logger.info("Fetch OHLCV 4H paralelo para %d candidates...", len(symbols_4h))
-            batch_4h = fetch_ohlcv_batch(symbols_4h, "4H", 100, max_workers=10)
+            symbols_1h = [s for s, _ in bitget_only_pairs]
+            logger.info("Fetch OHLCV 1H paralelo para %d pares...", len(symbols_1h))
+            batch_1h = fetch_ohlcv_batch(symbols_1h, "1H", 100, max_workers=10)
 
-            for symbol, bd, candles_1h in candidates:
-                calc_1h = calc_1h_indicators(candles_1h)
-                candles_4h = batch_4h.get(symbol)
-                calc_4h = calc_4h_indicators(candles_4h) if candles_4h else {}
+            candidates = []
+            for symbol, bd in bitget_only_pairs:
+                candles_1h = batch_1h.get(symbol)
+                if not candles_1h:
+                    continue
+                if not passes_1h_precheck(candles_1h):
+                    continue
+                candidates.append((symbol, bd, candles_1h))
 
-                row = {
-                    "name": symbol + ".P",
-                    "exchange": "BITGET",
-                    "close": calc_1h.get("close_calc"),
-                    "change": bd.get("change"),
-                    "volume": bd.get("volume_usd"),
-                    "change_volume": None,
-                    "ATR|60": calc_1h.get("ATR|60"),
-                    "Volatility.D": None,
-                    "ADX|60": calc_1h.get("ADX|60"),
-                    "ADX|240": calc_4h.get("ADX|240"),
-                    "RSI|60": calc_1h.get("RSI|60"),
-                    "RSI|240": calc_4h.get("RSI|240"),
-                    "ADX+DI|60": calc_1h.get("ADX+DI|60"),
-                    "ADX-DI|60": calc_1h.get("ADX-DI|60"),
-                }
-                rows.append(row)
+            logger.info("Pares que pasan pre-check 1H: %d / %d", len(candidates), len(bitget_only_pairs))
+
+            if candidates:
+                symbols_4h = [s for s, _, _ in candidates]
+                logger.info("Fetch OHLCV 4H paralelo para %d candidates...", len(symbols_4h))
+                batch_4h = fetch_ohlcv_batch(symbols_4h, "4H", 100, max_workers=10)
+
+                for symbol, bd, candles_1h in candidates:
+                    calc_1h = calc_1h_indicators(candles_1h)
+                    candles_4h = batch_4h.get(symbol)
+                    calc_4h = calc_4h_indicators(candles_4h) if candles_4h else {}
+
+                    row = {
+                        "name": symbol + ".P",
+                        "exchange": "BITGET",
+                        "close": calc_1h.get("close_calc"),
+                        "change": bd.get("change"),
+                        "volume": bd.get("volume_usd"),
+                        "change_volume": None,
+                        "ATR|60": calc_1h.get("ATR|60"),
+                        "Volatility.D": None,
+                        "ADX|60": calc_1h.get("ADX|60"),
+                        "ADX|240": calc_4h.get("ADX|240"),
+                        "RSI|60": calc_1h.get("RSI|60"),
+                        "RSI|240": calc_4h.get("RSI|240"),
+                        "ADX+DI|60": calc_1h.get("ADX+DI|60"),
+                        "ADX-DI|60": calc_1h.get("ADX-DI|60"),
+                    }
+                    rows.append(row)
 
     ex_counts = {}
     for r in rows:
