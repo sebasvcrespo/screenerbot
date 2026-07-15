@@ -3,14 +3,37 @@
 Monitoriza screeners de TradingView (Long y Short) y envía alertas a Telegram cuando
 aparecen pares que cumplen los parámetros técnicos configurados.
 
-## Requisitos
+## Estructura del proyecto
 
-- Python 3.8+
-- `pip install -r requirements.txt`
+```
+├── main.py                 # Entry point: orquesta el scan loop, bot commands, HTTP server
+├── screener_client.py      # TradingView API client (POST a scanner.tradingview.com)
+├── bitget_client.py        # Bitget ticker API (24h change, volume)
+├── bitget_ohlcv.py         # Bitget OHLCV candles (1H, batch fetching)
+├── indicators.py           # Cálculos: RSI, ATR, ADX/DI, volatilidad (pure Python, sin pandas/numpy)
+├── detector.py             # Evalúa si un par pasa los filtros del config
+├── telegram_notifier.py    # Bot API: send_alert, check_commands (/abrir, /cerrar, etc.)
+├── state_store.py          # Estado persistente: Upstash Redis o state_cache.json
+├── config.json             # Filtros de screeners + estados de exchanges
+├── requirements.txt        # Solo requests y python-dotenv
+└── .github/workflows/      # GitHub Actions: cron cada 5 min
+```
 
-## Configuración
+## Dependencias
 
-### Variables de entorno (obligatorio)
+Solo dos librerías externas: `requests` y `python-dotenv`. Todo lo demás es stdlib.
+Los indicadores técnicos se calculan con Python puro (no hay pandas, numpy, ni TA-Lib).
+
+## Convenciones
+
+- **Sin frameworks** — todo es módulos Python simples, sin clases complejas
+- **Config centralizado** — `config.json` tiene todos los parámetros de filtros
+- **Dual backend de estado** — Upstash Redis (producción) o JSON local (desarrollo)
+- **Logging** — usa `logging` stdlib, no print statements para debug
+- **APIs externas** — TradingView (con headers anti-Cloudflare), Bitget REST, Telegram Bot API
+- **Runs on Python 3.10** en GitHub Actions (ubuntu-latest)
+
+## Variables de entorno
 
 | Variable | Descripción |
 |---|---|
@@ -18,6 +41,8 @@ aparecen pares que cumplen los parámetros técnicos configurados.
 | `CHAT_ID` | ID del chat donde recibirás las alertas |
 | `UPSTASH_REDIS_REST_URL` | URL REST de Upstash (ej: `https://xxxx.upstash.io`) |
 | `UPSTASH_REDIS_REST_TOKEN` | Token REST de Upstash |
+
+## Configuración
 
 ### config.json
 
@@ -50,14 +75,16 @@ Este proyecto corre como **GitHub Actions** cada 5 minutos. No necesita servidor
 
 ### Control remoto vía Telegram
 
-Puedes activar/desactivar exchanges enviando comandos al bot:
-
 | Comando | Efecto |
 |---|---|
 | `/abrir bitget` | Activa alertas de BITGET |
 | `/cerrar bitget` | Desactiva alertas de BITGET |
 | `/abrir pionex` | Activa alertas de PIONEX |
 | `/cerrar pionex` | Desactiva alertas de PIONEX |
+| `/pausar` | Pausa el scan completo |
+| `/reanudar` | Reanuda el scan |
+| `/interval 10` | Cambia intervalo a 10 min |
+| `/estado` | Muestra estado actual |
 
 Cuando un exchange está **cerrado**, el agente no envía alertas de pares listados en ese exchange.
 
@@ -105,3 +132,10 @@ Cuando un exchange está **cerrado**, el agente no envía alertas de pares lista
 | `RSI\|240` | RSI 4H |
 
 Si alguna columna no devuelve datos, ajustar los nombres en `screener_client.py`.
+
+## Notas para desarrollo
+
+- No hay tests ni linter configurados — verificar cambios ejecutando `python main.py`
+- El flujo principal: `screener_client` → `detector.passes_filters()` → `indicators` → `telegram_notifier`
+- `state_store.py` maneja el offset de scans para evitar alertas duplicadas
+- TradingView puede bloquear requests — `screener_client.py` maneja HTTP 429 con backoff
