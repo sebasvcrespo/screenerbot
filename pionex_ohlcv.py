@@ -15,7 +15,8 @@ GRANULARITY_MAP = {
 
 def fetch_pionex_ohlcv(symbol, granularity="1H", limit=100):
     pionex_interval = GRANULARITY_MAP.get(granularity, granularity)
-    pionex_symbol = f"{symbol}_USDT_PERP"
+    base = symbol[:-4] if symbol.endswith("USDT") else symbol
+    pionex_symbol = f"{base}_USDT_PERP"
 
     try:
         resp = requests.get(

@@ -86,9 +86,16 @@ def format_status(exchanges, interval):
 
 
 def format_indicators(row, screener_config):
+    source = row.get("change_source", "")
+    change_val = row.get("change")
+    if change_val is not None:
+        change_str = f"{change_val:.2f}%"
+    else:
+        change_str = None
+
     indicators = [
         ("Precio", f"${row.get('close'):.8f}" if row.get("close") else None),
-        ("Cambio 24h", f"{row.get('change'):.2f}%" if row.get("change") is not None else None),
+        ("Cambio 24h", change_str),
         ("Vol USD", f"${row.get('volume'):,.0f}" if row.get("volume") else None),
     ]
 
@@ -105,6 +112,9 @@ def format_indicators(row, screener_config):
     if "atr_1h_pct" in filters and row.get("ATR|60") is not None and row.get("close"):
         atr_pct = row["ATR|60"] / row["close"] * 100
         indicators.append(("ATR 1H", f"{atr_pct:.2f}%"))
+
+    if source:
+        indicators.append(("Fuente", source))
 
     return indicators
 
@@ -225,6 +235,10 @@ def main():
 
     logger.info("Obtenidos %d pares en total", len(rows))
 
+    for row in rows:
+        row["change"] = None
+        row["change_source"] = ""
+
     bitget_data = fetch_bitget_data()
 
     pionex_tv_symbols = []
@@ -251,6 +265,8 @@ def main():
         if exchange_data:
             if "change" in exchange_data:
                 row["change"] = exchange_data["change"]
+                row["change_source"] = f"{exchange_name}_TICKER"
+                logger.info("Change %s: %.4f%% [Fuente: %s_TICKER]", base_symbol, exchange_data["change"], exchange_name)
             if "volume_usd" in exchange_data:
                 row["volume"] = exchange_data["volume_usd"]
             if "last_price" in exchange_data:
@@ -299,6 +315,8 @@ def main():
                     row["RSI|240"] = calculated["RSI|240"]
                 if row.get("change") is None and "change_24h_calc" in calculated:
                     row["change"] = calculated["change_24h_calc"]
+                    row["change_source"] = "BITGET_OHLCV"
+                    logger.info("Change %s: %.4f%% [Fuente: BITGET_OHLCV]", symbol, calculated["change_24h_calc"])
                 if row.get("close") is None and "close_calc" in calculated:
                     row["close"] = calculated["close_calc"]
 
@@ -332,10 +350,47 @@ def main():
                     row["RSI|240"] = calculated["RSI|240"]
                 if row.get("change") is None and "change_24h_calc" in calculated:
                     row["change"] = calculated["change_24h_calc"]
+                    row["change_source"] = "PIONEX_OHLCV"
+                    logger.info("Change %s: %.4f%% [Fuente: PIONEX_OHLCV]", symbol, calculated["change_24h_calc"])
                 if row.get("close") is None and "close_calc" in calculated:
                     row["close"] = calculated["close_calc"]
 
                 logger.info("OHLCV Pionex fallback %s completado", symbol)
+
+    pairs_need_change = []
+    for row in rows:
+        if row.get("change") is None:
+            pairs_need_change.append(row)
+
+    if pairs_need_change:
+        logger.info("Fetch OHLCV para %d pares sin cambio 24h...", len(pairs_need_change))
+
+        bitget_change = [r for r in pairs_need_change if r.get("exchange") == "BITGET"]
+        pionex_change = [r for r in pairs_need_change if r.get("exchange") == "PIONEX"]
+
+        for row in bitget_change:
+            symbol = row["name"].replace(".P", "")
+            candles_1h = fetch_ohlcv(symbol, "1H", 100)
+            if not candles_1h:
+                logger.warning("Sin OHLCV 1H para change Bitget %s", symbol)
+                continue
+            calc = calc_indicators_from_ohlcv(candles_1h, None)
+            if "change_24h_calc" in calc:
+                row["change"] = calc["change_24h_calc"]
+                row["change_source"] = "BITGET_OHLCV"
+                logger.info("Change %s: %.4f%% [Fuente: BITGET_OHLCV]", symbol, calc["change_24h_calc"])
+
+        for row in pionex_change:
+            symbol = row["name"].replace(".P", "")
+            candles_1h = fetch_pionex_ohlcv(symbol, "1H", 100)
+            if not candles_1h:
+                logger.warning("Sin OHLCV 1H para change Pionex %s", symbol)
+                continue
+            calc = calc_indicators_from_ohlcv(candles_1h, None)
+            if "change_24h_calc" in calc:
+                row["change"] = calc["change_24h_calc"]
+                row["change_source"] = "PIONEX_OHLCV"
+                logger.info("Change %s: %.4f%% [Fuente: PIONEX_OHLCV]", symbol, calc["change_24h_calc"])
 
     if "BITGET" in activos:
         bitget_only_pairs = []
@@ -385,6 +440,7 @@ def main():
                         "exchange": "BITGET",
                         "close": calc_1h.get("close_calc"),
                         "change": bd.get("change"),
+                        "change_source": "BITGET_TICKER" if bd.get("change") is not None else "",
                         "volume": bd.get("volume_usd"),
                         "change_volume": None,
                         "ATR|60": calc_1h.get("ATR|60"),
