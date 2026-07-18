@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 from screener_client import query_screener, ScreenerBlockedError
 from bitget_client import fetch_bitget_data
 from bitget_ohlcv import fetch_ohlcv, fetch_ohlcv_batch
+from pionex_client import fetch_pionex_data
+from pionex_ohlcv import fetch_pionex_ohlcv, fetch_pionex_ohlcv_batch
 from indicators import calc_indicators_from_ohlcv, calc_1h_indicators, calc_4h_indicators, passes_1h_precheck
 from detector import passes_filters
 from telegram_notifier import send_alert, send_message, check_commands
@@ -225,20 +227,34 @@ def main():
 
     bitget_data = fetch_bitget_data()
 
+    pionex_tv_symbols = []
+    for row in rows:
+        if row.get("exchange") == "PIONEX":
+            symbol = row.get("name", "").replace(".P", "")
+            if symbol:
+                pionex_tv_symbols.append(symbol)
+    pionex_data = fetch_pionex_data(pionex_tv_symbols)
+
     tv_symbols = set()
     for row in rows:
         name = row.get("name", "")
-        bitget_symbol = name.replace(".P", "")
-        tv_symbols.add(bitget_symbol)
+        base_symbol = name.replace(".P", "")
+        tv_symbols.add(base_symbol)
 
-        if bitget_symbol in bitget_data:
-            bd = bitget_data[bitget_symbol]
-            if row.get("change") is None and "change" in bd:
-                row["change"] = bd["change"]
-            if row.get("volume") is None and "volume_usd" in bd:
-                row["volume"] = bd["volume_usd"]
-            if row.get("close") is None and "last_price" in bd:
-                row["close"] = bd["last_price"]
+        exchange_name = row.get("exchange", "")
+        exchange_data = None
+        if exchange_name == "BITGET":
+            exchange_data = bitget_data.get(base_symbol)
+        elif exchange_name == "PIONEX":
+            exchange_data = pionex_data.get(base_symbol)
+
+        if exchange_data:
+            if "change" in exchange_data:
+                row["change"] = exchange_data["change"]
+            if "volume_usd" in exchange_data:
+                row["volume"] = exchange_data["volume_usd"]
+            if "last_price" in exchange_data:
+                row["close"] = exchange_data["last_price"]
 
     CRITICAL_INDICATORS = ["RSI|60", "ADX|60", "ADX+DI|60", "ADX-DI|60", "ATR|60", "ADX|240"]
 
@@ -250,37 +266,76 @@ def main():
                 break
 
     if pairs_need_ohlcv:
-        logger.info("Fetch OHLCV Bitget para %d pares con datos faltantes...", len(pairs_need_ohlcv))
-        for row in pairs_need_ohlcv:
-            symbol = row["name"].replace(".P", "")
-            candles_1h = fetch_ohlcv(symbol, "1H", 100)
-            candles_4h = fetch_ohlcv(symbol, "4H", 100)
-            if not candles_1h:
-                logger.warning("Sin OHLCV 1H para %s", symbol)
-                continue
+        logger.info("Fetch OHLCV exchanges para %d pares con datos faltantes...", len(pairs_need_ohlcv))
 
-            calculated = calc_indicators_from_ohlcv(candles_1h, candles_4h)
+        bitget_pairs = [r for r in pairs_need_ohlcv if r.get("exchange") == "BITGET"]
+        pionex_pairs = [r for r in pairs_need_ohlcv if r.get("exchange") == "PIONEX"]
 
-            if row.get("RSI|60") is None and "RSI|60" in calculated:
-                row["RSI|60"] = calculated["RSI|60"]
-            if row.get("ADX|60") is None and "ADX|60" in calculated:
-                row["ADX|60"] = calculated["ADX|60"]
-            if row.get("ADX+DI|60") is None and "ADX+DI|60" in calculated:
-                row["ADX+DI|60"] = calculated["ADX+DI|60"]
-            if row.get("ADX-DI|60") is None and "ADX-DI|60" in calculated:
-                row["ADX-DI|60"] = calculated["ADX-DI|60"]
-            if row.get("ATR|60") is None and "ATR|60" in calculated:
-                row["ATR|60"] = calculated["ATR|60"]
-            if row.get("ADX|240") is None and "ADX|240" in calculated:
-                row["ADX|240"] = calculated["ADX|240"]
-            if row.get("RSI|240") is None and "RSI|240" in calculated:
-                row["RSI|240"] = calculated["RSI|240"]
-            if row.get("change") is None and "change_24h_calc" in calculated:
-                row["change"] = calculated["change_24h_calc"]
-            if row.get("close") is None and "close_calc" in calculated:
-                row["close"] = calculated["close_calc"]
+        if bitget_pairs:
+            logger.info("Fetch OHLCV Bitget para %d pares...", len(bitget_pairs))
+            for row in bitget_pairs:
+                symbol = row["name"].replace(".P", "")
+                candles_1h = fetch_ohlcv(symbol, "1H", 100)
+                candles_4h = fetch_ohlcv(symbol, "4H", 100)
+                if not candles_1h:
+                    logger.warning("Sin OHLCV 1H Bitget para %s", symbol)
+                    continue
 
-            logger.info("OHLCV fallback %s completado", symbol)
+                calculated = calc_indicators_from_ohlcv(candles_1h, candles_4h)
+
+                if row.get("RSI|60") is None and "RSI|60" in calculated:
+                    row["RSI|60"] = calculated["RSI|60"]
+                if row.get("ADX|60") is None and "ADX|60" in calculated:
+                    row["ADX|60"] = calculated["ADX|60"]
+                if row.get("ADX+DI|60") is None and "ADX+DI|60" in calculated:
+                    row["ADX+DI|60"] = calculated["ADX+DI|60"]
+                if row.get("ADX-DI|60") is None and "ADX-DI|60" in calculated:
+                    row["ADX-DI|60"] = calculated["ADX-DI|60"]
+                if row.get("ATR|60") is None and "ATR|60" in calculated:
+                    row["ATR|60"] = calculated["ATR|60"]
+                if row.get("ADX|240") is None and "ADX|240" in calculated:
+                    row["ADX|240"] = calculated["ADX|240"]
+                if row.get("RSI|240") is None and "RSI|240" in calculated:
+                    row["RSI|240"] = calculated["RSI|240"]
+                if row.get("change") is None and "change_24h_calc" in calculated:
+                    row["change"] = calculated["change_24h_calc"]
+                if row.get("close") is None and "close_calc" in calculated:
+                    row["close"] = calculated["close_calc"]
+
+                logger.info("OHLCV Bitget fallback %s completado", symbol)
+
+        if pionex_pairs:
+            logger.info("Fetch OHLCV Pionex para %d pares...", len(pionex_pairs))
+            for row in pionex_pairs:
+                symbol = row["name"].replace(".P", "")
+                candles_1h = fetch_pionex_ohlcv(symbol, "1H", 100)
+                candles_4h = fetch_pionex_ohlcv(symbol, "4H", 100)
+                if not candles_1h:
+                    logger.warning("Sin OHLCV 1H Pionex para %s", symbol)
+                    continue
+
+                calculated = calc_indicators_from_ohlcv(candles_1h, candles_4h)
+
+                if row.get("RSI|60") is None and "RSI|60" in calculated:
+                    row["RSI|60"] = calculated["RSI|60"]
+                if row.get("ADX|60") is None and "ADX|60" in calculated:
+                    row["ADX|60"] = calculated["ADX|60"]
+                if row.get("ADX+DI|60") is None and "ADX+DI|60" in calculated:
+                    row["ADX+DI|60"] = calculated["ADX+DI|60"]
+                if row.get("ADX-DI|60") is None and "ADX-DI|60" in calculated:
+                    row["ADX-DI|60"] = calculated["ADX-DI|60"]
+                if row.get("ATR|60") is None and "ATR|60" in calculated:
+                    row["ATR|60"] = calculated["ATR|60"]
+                if row.get("ADX|240") is None and "ADX|240" in calculated:
+                    row["ADX|240"] = calculated["ADX|240"]
+                if row.get("RSI|240") is None and "RSI|240" in calculated:
+                    row["RSI|240"] = calculated["RSI|240"]
+                if row.get("change") is None and "change_24h_calc" in calculated:
+                    row["change"] = calculated["change_24h_calc"]
+                if row.get("close") is None and "close_calc" in calculated:
+                    row["close"] = calculated["close_calc"]
+
+                logger.info("OHLCV Pionex fallback %s completado", symbol)
 
     if "BITGET" in activos:
         bitget_only_pairs = []
