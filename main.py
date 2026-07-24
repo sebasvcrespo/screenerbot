@@ -27,6 +27,9 @@ from state_store import (
     get_blocked_until,
     set_blocked_until,
     clear_blocked_until,
+    get_blocked_attempts,
+    save_blocked_attempts,
+    clear_blocked_attempts,
 )
 
 logging.basicConfig(
@@ -226,8 +229,16 @@ def main():
     try:
         rows = query_screener(activos)
         clear_blocked_until()
+        clear_blocked_attempts()
     except ScreenerBlockedError:
-        set_blocked_until(time.time() + 900)
+        attempts = get_blocked_attempts() + 1
+        save_blocked_attempts(attempts)
+        backoff = min(900 * (2 ** (attempts - 1)), 7200)
+        set_blocked_until(time.time() + backoff)
+        logger.warning(
+            "429 bloqueado (%d° intento) — backoff %d min",
+            attempts, int(backoff / 60),
+        )
         return
     except Exception as e:
         logger.error("Error en screener: %s", e)

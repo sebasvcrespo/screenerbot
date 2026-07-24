@@ -121,3 +121,16 @@ def set_blocked_until(timestamp):
 def clear_blocked_until():
     _set("blocked_until", "0")
     logger.info("Bloqueo Cloudflare liberado")
+
+
+def get_blocked_attempts():
+    val = _get("blocked_attempts")
+    return int(val) if val else 0
+
+
+def save_blocked_attempts(count):
+    _set("blocked_attempts", str(count))
+
+
+def clear_blocked_attempts():
+    _set("blocked_attempts", "0")
