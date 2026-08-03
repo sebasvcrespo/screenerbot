@@ -12,14 +12,17 @@ RETRY_DELAY = 1.5
 
 
 def _symbol_to_pionex(symbol):
+    if symbol.endswith("_PERP") or "_BTC_" in symbol:
+        return symbol
     base = symbol[:-4] if symbol.endswith("USDT") else symbol
     return f"{base}_USDT_PERP"
 
 
-def _parse_ticker(ticker):
+def _parse_ticker(ticker, btc_price=None):
     entry = {}
     last_price = ticker.get("close")
     open_price = ticker.get("open")
+    sym = ticker.get("symbol", "")
 
     if last_price and open_price:
         try:
@@ -40,7 +43,14 @@ def _parse_ticker(ticker):
     amount = ticker.get("amount")
     if amount is not None and amount != "":
         try:
-            entry["volume_usd"] = float(amount)
+            amt_f = float(amount)
+            if "_BTC_" in sym:
+                if btc_price:
+                    entry["volume_usd"] = amt_f * btc_price
+                else:
+                    entry["volume_usd"] = 0
+            else:
+                entry["volume_usd"] = amt_f
         except (ValueError, TypeError):
             pass
 
@@ -98,6 +108,14 @@ def fetch_pionex_data(symbols):
         logger.warning("Pionex: sin datos batch tras %d intentos (%s)", MAX_RETRIES, last_err)
         return {}
 
+    btc_ticker = all_tickers.get("BTC_USDT_PERP")
+    btc_price = 0
+    if btc_ticker and btc_ticker.get("close"):
+        try:
+            btc_price = float(btc_ticker.get("close"))
+        except (ValueError, TypeError):
+            pass
+
     result = {}
     found = 0
     not_found = 0
@@ -107,7 +125,7 @@ def fetch_pionex_data(symbols):
         ticker = all_tickers.get(pionex_sym)
 
         if ticker:
-            entry = _parse_ticker(ticker)
+            entry = _parse_ticker(ticker, btc_price)
             if entry:
                 result[symbol] = entry
                 found += 1

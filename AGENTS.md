@@ -115,7 +115,7 @@ Cuando un exchange está **cerrado**, el agente no envía alertas de pares lista
 ### Exchanges
 - BITGET
 - PIONEX
-- Solo pares USDT futuros perpetuos (sufijo .P)
+- Solo pares USDT futuros perpetuos (sufijo .P) y pares perpetuos en base BTC de Pionex (`ADA_BTC_PERP`, `ORDI_BTC_PERP`, `PAXG_BTC_PERP`, `LINK_BTC_PERP`, `XRP_BTC_PERP`, `SOL_BTC_PERP`, `ETH_BTC_PERP`, `BNB_BTC_PERP`, `DOGE_BTC_PERP`, `SUI_BTC_PERP`, con precios a 8 decimales).
 
 ## Columnas TradingView API
 

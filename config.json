@@ -3,6 +3,18 @@
     "BITGET": "abierto",
     "PIONEX": "abierto"
   },
+  "pionex_btc_pairs": [
+    "ADA_BTC_PERP",
+    "ORDI_BTC_PERP",
+    "PAXG_BTC_PERP",
+    "LINK_BTC_PERP",
+    "XRP_BTC_PERP",
+    "SOL_BTC_PERP",
+    "ETH_BTC_PERP",
+    "BNB_BTC_PERP",
+    "DOGE_BTC_PERP",
+    "SUI_BTC_PERP"
+  ],
   "screeners": {
     "long": {
       "name": "LONG",

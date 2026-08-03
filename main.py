@@ -97,7 +97,7 @@ def format_indicators(row, screener_config):
         change_str = None
 
     indicators = [
-        ("Precio", f"${row.get('close'):.8f}" if row.get("close") else None),
+        ("Precio", f"{row.get('close'):.8f} BTC" if row.get("close") and "_BTC_" in row.get("name", "") else (f"${row.get('close'):.8f}" if row.get("close") else None)),
         ("Cambio 24h", change_str),
         ("Vol USD", f"${row.get('volume'):,.0f}" if row.get("volume") else None),
     ]
@@ -258,7 +258,10 @@ def main():
             symbol = row.get("name", "").replace(".P", "")
             if symbol:
                 pionex_tv_symbols.append(symbol)
-    pionex_data = fetch_pionex_data(pionex_tv_symbols)
+    
+    pionex_btc_pairs = config.get("pionex_btc_pairs", [])
+    all_pionex_symbols = list(set(pionex_tv_symbols + pionex_btc_pairs))
+    pionex_data = fetch_pionex_data(all_pionex_symbols)
 
     tv_symbols = set()
     for row in rows:
@@ -282,6 +285,39 @@ def main():
                 row["volume"] = exchange_data["volume_usd"]
             if "last_price" in exchange_data:
                 row["close"] = exchange_data["last_price"]
+
+    if "PIONEX" in activos and pionex_btc_pairs:
+        existing_names = {r.get("name") for r in rows}
+        btc_pairs_to_add = [s for s in pionex_btc_pairs if s not in existing_names]
+        if btc_pairs_to_add:
+            logger.info("Procesando %d pares BTC de Pionex adicionales...", len(btc_pairs_to_add))
+            for btc_symbol in btc_pairs_to_add:
+                ex_data = pionex_data.get(btc_symbol, {})
+                candles_1h = fetch_pionex_ohlcv(btc_symbol, "1H", 100)
+                candles_4h = fetch_pionex_ohlcv(btc_symbol, "4H", 100)
+                if not candles_1h:
+                    logger.warning("Sin OHLCV 1H para Pionex BTC pair %s", btc_symbol)
+                    continue
+                calc_all = calc_indicators_from_ohlcv(candles_1h, candles_4h)
+                row = {
+                    "name": btc_symbol,
+                    "exchange": "PIONEX",
+                    "close": ex_data.get("last_price") or calc_all.get("close_calc"),
+                    "change": ex_data.get("change") if ex_data.get("change") is not None else calc_all.get("change_24h_calc"),
+                    "change_source": "PIONEX_TICKER" if ex_data.get("change") is not None else "PIONEX_OHLCV",
+                    "volume": ex_data.get("volume_usd"),
+                    "change_volume": None,
+                    "ATR|60": calc_all.get("ATR|60"),
+                    "Volatility.D": None,
+                    "ADX|60": calc_all.get("ADX|60"),
+                    "ADX|240": calc_all.get("ADX|240"),
+                    "RSI|60": calc_all.get("RSI|60"),
+                    "RSI|240": calc_all.get("RSI|240"),
+                    "ADX+DI|60": calc_all.get("ADX+DI|60"),
+                    "ADX-DI|60": calc_all.get("ADX-DI|60"),
+                }
+                rows.append(row)
+                logger.info("Par BTC Pionex añadido: %s (Precio: %.8f)", btc_symbol, row["close"] or 0)
 
     CRITICAL_INDICATORS = ["RSI|60", "ADX|60", "ADX+DI|60", "ADX-DI|60", "ATR|60", "ADX|240"]
 
