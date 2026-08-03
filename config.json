@@ -1,7 +1,8 @@
 {
   "exchanges": {
     "BITGET": "abierto",
-    "PIONEX": "abierto"
+    "PIONEX": "abierto",
+    "BTC": "abierto"
   },
   "pionex_btc_pairs": [
     "ADA_BTC_PERP",

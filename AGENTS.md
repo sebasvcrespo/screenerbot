@@ -81,6 +81,8 @@ Este proyecto corre como **GitHub Actions** cada 5 minutos. No necesita servidor
 | `/cerrar bitget` | Desactiva alertas de BITGET |
 | `/abrir pionex` | Activa alertas de PIONEX |
 | `/cerrar pionex` | Desactiva alertas de PIONEX |
+| `/abrir btc` | Activa alertas de pares BTC de Pionex |
+| `/cerrar btc` | Desactiva alertas de pares BTC de Pionex |
 | `/pausar` | Pausa el scan completo |
 | `/reanudar` | Reanuda el scan |
 | `/interval 10` | Cambia intervalo a 10 min |

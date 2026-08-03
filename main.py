@@ -46,10 +46,10 @@ HELP_TEXT = """\
 Comandos disponibles:
 /start - Muestra tu chat_id
 /help - Esta ayuda
-/abrir <exchange> - Activa alertas (ej: /abrir bitget)
-/cerrar <exchange> - Desactiva alertas (ej: /cerrar pionex)
+/abrir <exchange> - Activa alertas (ej: /abrir bitget, /abrir btc)
+/cerrar <exchange> - Desactiva alertas (ej: /cerrar pionex, /cerrar btc)
 /interval <minutos> - Cambia frecuencia de escaneo
-/estado - Muestra configuraci\u00f3n actual
+/estado - Muestra configuración actual
 /pausar - Pausa todas las alertas
 /reanudar - Reanuda alertas\
 """
@@ -149,7 +149,9 @@ def main():
     if exchanges is None:
         exchanges = dict(config.get("exchanges", {}))
         if not exchanges:
-            exchanges = {"BITGET": "abierto", "PIONEX": "abierto"}
+            exchanges = {"BITGET": "abierto", "PIONEX": "abierto", "BTC": "abierto"}
+    if "BTC" not in exchanges:
+        exchanges["BTC"] = config.get("exchanges", {}).get("BTC", "abierto")
 
     blocked_until = get_blocked_until()
     if blocked_until > time.time():
@@ -220,31 +222,34 @@ def main():
     activos = [ex for ex, st in exchanges.items() if st == "abierto"]
 
     if not activos:
-        logger.info("Todos los exchanges cerrados. No se escanea.")
+        logger.info("Todos los exchanges y mercados cerrados. No se escanea.")
         return
 
-    logger.info("Escaneando %s...", activos)
+    tv_activos = [ex for ex in activos if ex in ("BITGET", "PIONEX")]
 
     rows = []
-    try:
-        rows = query_screener(activos)
-        clear_blocked_until()
-        clear_blocked_attempts()
-    except ScreenerBlockedError:
-        attempts = get_blocked_attempts() + 1
-        save_blocked_attempts(attempts)
-        backoff = min(900 * (2 ** (attempts - 1)), 7200)
-        set_blocked_until(time.time() + backoff)
-        logger.warning(
-            "429 bloqueado (%d° intento) — backoff %d min",
-            attempts, int(backoff / 60),
-        )
-        return
-    except Exception as e:
-        logger.error("Error en screener: %s", e)
-        return
-
-    logger.info("Obtenidos %d pares en total", len(rows))
+    if tv_activos:
+        logger.info("Escaneando exchanges USDT %s...", tv_activos)
+        try:
+            rows = query_screener(tv_activos)
+            clear_blocked_until()
+            clear_blocked_attempts()
+        except ScreenerBlockedError:
+            attempts = get_blocked_attempts() + 1
+            save_blocked_attempts(attempts)
+            backoff = min(900 * (2 ** (attempts - 1)), 7200)
+            set_blocked_until(time.time() + backoff)
+            logger.warning(
+                "429 bloqueado (%d° intento) — backoff %d min",
+                attempts, int(backoff / 60),
+            )
+            return
+        except Exception as e:
+            logger.error("Error en screener: %s", e)
+            return
+        logger.info("Obtenidos %d pares en total desde TradingView", len(rows))
+    else:
+        logger.info("Exchanges USDT cerrados. Saltando escaneo TradingView.")
 
     for row in rows:
         row["change"] = None
@@ -286,7 +291,7 @@ def main():
             if "last_price" in exchange_data:
                 row["close"] = exchange_data["last_price"]
 
-    if "PIONEX" in activos and pionex_btc_pairs:
+    if "BTC" in activos and pionex_btc_pairs:
         existing_names = {r.get("name") for r in rows}
         btc_pairs_to_add = [s for s in pionex_btc_pairs if s not in existing_names]
         if btc_pairs_to_add:

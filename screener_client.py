@@ -72,10 +72,14 @@ def query_screener(exchanges):
         {"left": "name", "operation": "match", "right": "USDT.P"},
     ]
 
+    tickers = []
+    if "PIONEX" in exchanges:
+        tickers.append("PIONEX:BTCUSDT.P")
+
     payload = {
         "symbols": {
             "query": {"types": []},
-            "tickers": []
+            "tickers": tickers
         },
         "columns": COLUMNS,
         "filter": filter_conditions,
