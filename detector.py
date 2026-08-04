@@ -48,6 +48,23 @@ def passes_filters(row, filters):
             if limits == "minus_gt_plus" and di_minus <= di_plus:
                 return False
             continue
+            
+        if filter_name == "bb_position_4h":
+            bb_pos = row.get("BB_position|240")
+            if bb_pos is None:
+                # Si no hay datos de BB, rechazamos para ser estrictos con la calidad
+                return False
+            
+            min_val = limits.get("min")
+            max_val = limits.get("max")
+            
+            if min_val is not None and bb_pos < min_val:
+                logger.debug("No pasa BB 4H: pos=%.4f < min=%.4f", bb_pos, min_val)
+                return False
+            if max_val is not None and bb_pos > max_val:
+                logger.debug("No pasa BB 4H: pos=%.4f > max=%.4f", bb_pos, max_val)
+                return False
+            continue
 
         value = _get_filter_value(row, filter_name)
         if value is None:

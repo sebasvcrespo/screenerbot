@@ -318,6 +318,7 @@ def main():
                     "ADX|240": calc_all.get("ADX|240"),
                     "RSI|60": calc_all.get("RSI|60"),
                     "RSI|240": calc_all.get("RSI|240"),
+                    "BB_position|240": calc_all.get("BB_position|240"),
                     "ADX+DI|60": calc_all.get("ADX+DI|60"),
                     "ADX-DI|60": calc_all.get("ADX-DI|60"),
                 }
@@ -365,6 +366,8 @@ def main():
                     row["ADX|240"] = calculated["ADX|240"]
                 if row.get("RSI|240") is None and "RSI|240" in calculated:
                     row["RSI|240"] = calculated["RSI|240"]
+                if row.get("BB_position|240") is None and "BB_position|240" in calculated:
+                    row["BB_position|240"] = calculated["BB_position|240"]
                 if row.get("change") is None and "change_24h_calc" in calculated:
                     row["change"] = calculated["change_24h_calc"]
                     row["change_source"] = "BITGET_OHLCV"
@@ -400,6 +403,8 @@ def main():
                     row["ADX|240"] = calculated["ADX|240"]
                 if row.get("RSI|240") is None and "RSI|240" in calculated:
                     row["RSI|240"] = calculated["RSI|240"]
+                if row.get("BB_position|240") is None and "BB_position|240" in calculated:
+                    row["BB_position|240"] = calculated["BB_position|240"]
                 if row.get("change") is None and "change_24h_calc" in calculated:
                     row["change"] = calculated["change_24h_calc"]
                     row["change_source"] = "PIONEX_OHLCV"
@@ -501,6 +506,7 @@ def main():
                         "ADX|240": calc_4h.get("ADX|240"),
                         "RSI|60": calc_1h.get("RSI|60"),
                         "RSI|240": calc_4h.get("RSI|240"),
+                        "BB_position|240": calc_4h.get("BB_position|240"),
                         "ADX+DI|60": calc_1h.get("ADX+DI|60"),
                         "ADX-DI|60": calc_1h.get("ADX-DI|60"),
                     }

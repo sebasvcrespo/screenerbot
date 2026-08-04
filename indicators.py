@@ -1,4 +1,5 @@
 import logging
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +124,21 @@ def calc_adx(highs, lows, closes, period=14):
     return adx, final_di_plus, final_di_minus
 
 
+def calc_bb(closes, period=20, dev=2):
+    if len(closes) < period:
+        return None, None
+
+    sma = sum(closes[-period:]) / period
+
+    variance = sum((c - sma) ** 2 for c in closes[-period:]) / period
+    std_dev = math.sqrt(variance)
+
+    upper = sma + (dev * std_dev)
+    lower = sma - (dev * std_dev)
+
+    return upper, lower
+
+
 def calc_change_24h(candles_1h):
     if len(candles_1h) < 25:
         return None
@@ -177,6 +193,12 @@ def calc_indicators_from_ohlcv(candles_1h, candles_4h):
         adx_4h, _, _ = calc_adx(highs_4h, lows_4h, closes_4h)
         if adx_4h is not None:
             result["ADX|240"] = adx_4h
+            
+        upper_bb, lower_bb = calc_bb(closes_4h)
+        if upper_bb is not None and lower_bb is not None and (upper_bb - lower_bb) != 0:
+            result["BB_upper|240"] = upper_bb
+            result["BB_lower|240"] = lower_bb
+            result["BB_position|240"] = (closes_4h[-1] - lower_bb) / (upper_bb - lower_bb)
 
     return result
 
@@ -230,6 +252,12 @@ def calc_4h_indicators(candles_4h):
     adx, _, _ = calc_adx(highs, lows, closes)
     if adx is not None:
         result["ADX|240"] = adx
+        
+    upper_bb, lower_bb = calc_bb(closes)
+    if upper_bb is not None and lower_bb is not None and (upper_bb - lower_bb) != 0:
+        result["BB_upper|240"] = upper_bb
+        result["BB_lower|240"] = lower_bb
+        result["BB_position|240"] = (closes[-1] - lower_bb) / (upper_bb - lower_bb)
 
     return result
 

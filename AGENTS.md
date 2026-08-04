@@ -111,6 +111,7 @@ Cuando un exchange está **cerrado**, el agente no envía alertas de pares lista
 - ADX 4H: 18 a 28
 - RSI 1H: 54 a 64
 - RSI 4H: 50 a 58
+- BB Posición 4H: < 0.7
 
 ### SHORT
 - Cambio 24h: -3% a 0%
@@ -122,6 +123,7 @@ Cuando un exchange está **cerrado**, el agente no envía alertas de pares lista
 - ADX 4H: 18 a 28
 - RSI 1H: 33 a 45
 - RSI 4H: 42 a 50
+- BB Posición 4H: > 0.3
 
 ### Exchanges
 - BITGET
