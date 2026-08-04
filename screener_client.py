@@ -72,14 +72,10 @@ def query_screener(exchanges):
         {"left": "name", "operation": "match", "right": "USDT.P"},
     ]
 
-    tickers = []
-    if "PIONEX" in exchanges:
-        tickers.append("PIONEX:BTCUSDT.P")
-
     payload = {
         "symbols": {
             "query": {"types": []},
-            "tickers": tickers
+            "tickers": []
         },
         "columns": COLUMNS,
         "filter": filter_conditions,
@@ -99,7 +95,29 @@ def query_screener(exchanges):
         raise ScreenerBlockedError("IP bloqueada por Cloudflare (HTTP 429)")
 
     resp.raise_for_status()
-    return _parse_response(resp.json())
+    results = _parse_response(resp.json())
+
+    # Garantizar PIONEX:BTCUSDT.P si Pionex está activo y no apareció en los resultados principales
+    if "PIONEX" in exchanges:
+        has_pionex_btc = any(r.get("symbol") == "PIONEX:BTCUSDT.P" for r in results)
+        if not has_pionex_btc:
+            logger.info("PIONEX:BTCUSDT.P no encontrado en la lista principal. Consultando individualmente...")
+            try:
+                payload_btc = {
+                    "symbols": {
+                        "query": {"types": []},
+                        "tickers": ["PIONEX:BTCUSDT.P"]
+                    },
+                    "columns": COLUMNS
+                }
+                resp_btc = sesion.post(TV_SCREENER_URL, json=payload_btc, timeout=15)
+                if resp_btc.status_code == 200:
+                    btc_results = _parse_response(resp_btc.json())
+                    results.extend(btc_results)
+            except Exception as e:
+                logger.warning("No se pudo obtener PIONEX:BTCUSDT.P individualmente: %s", e)
+
+    return results
 
 
 def _parse_response(data):
