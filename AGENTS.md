@@ -10,6 +10,8 @@ aparecen pares que cumplen los parámetros técnicos configurados.
 ├── screener_client.py      # TradingView API client (POST a scanner.tradingview.com)
 ├── bitget_client.py        # Bitget ticker API (24h change, volume)
 ├── bitget_ohlcv.py         # Bitget OHLCV candles (1H, batch fetching)
+├── pionex_client.py        # Pionex ticker API
+├── pionex_ohlcv.py         # Pionex OHLCV candles
 ├── indicators.py           # Cálculos: RSI, ATR, ADX/DI, volatilidad (pure Python, sin pandas/numpy)
 ├── detector.py             # Evalúa si un par pasa los filtros del config
 ├── telegram_notifier.py    # Bot API: send_alert, check_commands (/abrir, /cerrar, etc.)
@@ -60,14 +62,21 @@ export UPSTASH_REDIS_REST_TOKEN="tu_token"
 python main.py
 ```
 
-## Deploy en GitHub Actions (gratis)
+## Deploy (Render o GitHub Actions)
 
-Este proyecto corre como **GitHub Actions** cada 5 minutos. No necesita servidor.
+El proyecto soporta dos formas de ejecución:
 
-### Requisitos
+### 1. Render (Recomendado - 24/7 con servidor HTTP)
+- Corre con el comando `python main.py --server --loop` (o configurado en Render con start command correspondiente).
+- Incluye un servidor HTTP web (`HealthHandler`) en el puerto especificado para mantener la instancia activa (keep-alive).
+
+### 2. GitHub Actions (Cron cada 5 min)
+- Corre automáticamente cada 5 minutos sin necesidad de servidor dedicado.
+
+### Requisitos (Variables de Entorno / Secrets)
 
 1. **Upstash Redis** (gratis) → [upstash.com](https://upstash.com)
-2. **GitHub Secrets** en tu repo:
+2. **Variables requeridas**:
    - `UPSTASH_REDIS_REST_URL` → URL REST de Upstash
    - `UPSTASH_REDIS_REST_TOKEN` → Token REST de Upstash
    - `BOT_TOKEN` → Token de Telegram
