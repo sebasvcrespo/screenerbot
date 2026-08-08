@@ -325,6 +325,25 @@ def main():
                 rows.append(row)
                 logger.info("Par BTC Pionex añadido: %s (Precio: %.8f)", btc_symbol, row["close"] or 0)
 
+    pionex_covered = set(config.get("pionex_btc_pairs", []))
+    for r in rows:
+        if r.get("exchange") == "PIONEX":
+            pionex_covered.add(r.get("name", "").replace(".P", ""))
+    before_dedup = len(rows)
+    rows = [
+        r for r in rows
+        if not (
+            r.get("exchange") == "BITGET"
+            and r.get("name", "").replace(".P", "") in pionex_covered
+        )
+    ]
+    dropped = before_dedup - len(rows)
+    if dropped:
+        logger.info(
+            "Deduplicación: %d pares BITGET ignorados (ya analizados en PIONEX)",
+            dropped,
+        )
+
     CRITICAL_INDICATORS = ["RSI|60", "ADX|60", "ADX+DI|60", "ADX-DI|60", "ATR|60", "ADX|240"]
 
     pairs_need_ohlcv = []

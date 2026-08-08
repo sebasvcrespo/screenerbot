@@ -80,7 +80,7 @@ def query_screener(exchanges):
         "columns": COLUMNS,
         "filter": filter_conditions,
         "sort": {"sortBy": "name", "sortOrder": "asc"},
-        "range": [0, 500]
+        "range": [0, 1500]
     }
 
     sesion = _get_session()
