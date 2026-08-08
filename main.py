@@ -255,6 +255,28 @@ def main():
         row["change"] = None
         row["change_source"] = ""
 
+    pionex_btc_pairs = config.get("pionex_btc_pairs", [])
+
+    pionex_covered = set(pionex_btc_pairs)
+    for r in rows:
+        if r.get("exchange") == "PIONEX":
+            pionex_covered.add(r.get("name", "").replace(".P", ""))
+    tv_symbols = {r.get("name", "").replace(".P", "") for r in rows}
+    before_dedup = len(rows)
+    rows = [
+        r for r in rows
+        if not (
+            r.get("exchange") == "BITGET"
+            and r.get("name", "").replace(".P", "") in pionex_covered
+        )
+    ]
+    dropped = before_dedup - len(rows)
+    if dropped:
+        logger.info(
+            "Deduplicación: %d pares BITGET ignorados (ya analizados en PIONEX)",
+            dropped,
+        )
+
     bitget_data = fetch_bitget_data()
 
     pionex_tv_symbols = []
@@ -263,17 +285,12 @@ def main():
             symbol = row.get("name", "").replace(".P", "")
             if symbol:
                 pionex_tv_symbols.append(symbol)
-    
-    pionex_btc_pairs = config.get("pionex_btc_pairs", [])
+
     all_pionex_symbols = list(set(pionex_tv_symbols + pionex_btc_pairs))
     pionex_data = fetch_pionex_data(all_pionex_symbols)
 
-    tv_symbols = set()
     for row in rows:
-        name = row.get("name", "")
-        base_symbol = name.replace(".P", "")
-        tv_symbols.add(base_symbol)
-
+        base_symbol = row.get("name", "").replace(".P", "")
         exchange_name = row.get("exchange", "")
         exchange_data = None
         if exchange_name == "BITGET":
@@ -324,25 +341,6 @@ def main():
                 }
                 rows.append(row)
                 logger.info("Par BTC Pionex añadido: %s (Precio: %.8f)", btc_symbol, row["close"] or 0)
-
-    pionex_covered = set(config.get("pionex_btc_pairs", []))
-    for r in rows:
-        if r.get("exchange") == "PIONEX":
-            pionex_covered.add(r.get("name", "").replace(".P", ""))
-    before_dedup = len(rows)
-    rows = [
-        r for r in rows
-        if not (
-            r.get("exchange") == "BITGET"
-            and r.get("name", "").replace(".P", "") in pionex_covered
-        )
-    ]
-    dropped = before_dedup - len(rows)
-    if dropped:
-        logger.info(
-            "Deduplicación: %d pares BITGET ignorados (ya analizados en PIONEX)",
-            dropped,
-        )
 
     CRITICAL_INDICATORS = ["RSI|60", "ADX|60", "ADX+DI|60", "ADX-DI|60", "ATR|60", "ADX|240"]
 
