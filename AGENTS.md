@@ -102,27 +102,25 @@ Cuando un exchange está **cerrado**, el agente no envía alertas de pares lista
 ## Screeners
 
 ### LONG
-- Cambio 24h: 0% a 3%
+- Cambio 24h: 0% a 5%
 - Vol USD 24h: > $300K
-- Cambio volumen 24h: 0% a 50%
-- ATR 1H: > 2%
-- Volatilidad: 5% a 25%
+- Cambio volumen 24h: 0% a 50% (soft — se omite si no hay datos)
+- ATR 1H: > 1.2%
 - ADX 1H: 25 a 45
-- ADX 4H: 18 a 28
+- ADX 4H: 12 a 28
 - RSI 1H: 54 a 64
-- RSI 4H: 50 a 58
+- DI 1H: D+ mayor a D- (`plus_gt_minus`)
 - BB Posición 4H: < 0.7
 
 ### SHORT
-- Cambio 24h: -3% a 0%
+- Cambio 24h: -5% a 0%
 - Vol USD 24h: > $300K
-- Cambio volumen 24h: -30% a 50%
-- ATR 1H: > 2%
-- Volatilidad: 5% a 25%
+- Cambio volumen 24h: -30% a 50% (soft — se omite si no hay datos)
+- ATR 1H: > 1.2%
 - ADX 1H: 25 a 35
-- ADX 4H: 18 a 28
+- ADX 4H: 12 a 28
 - RSI 1H: 33 a 45
-- RSI 4H: 42 a 50
+- DI 1H: D- mayor a D+ (`minus_gt_plus`)
 - BB Posición 4H: > 0.3
 
 ### Exchanges
@@ -143,6 +141,12 @@ Cuando un exchange está **cerrado**, el agente no envía alertas de pares lista
 | `ADX\|240` | ADX 4H |
 | `RSI\|60` | RSI 1H |
 | `RSI\|240` | RSI 4H |
+| `BB.upper\|240` | Banda superior Bollinger 4H (para calcular `BB_position\|240`) |
+| `BB.lower\|240` | Banda inferior Bollinger 4H (para calcular `BB_position\|240`) |
+
+`BB_position|240` se calcula como `(close - BB.lower|240) / (BB.upper|240 - BB.lower|240)`
+cuando la fila no lo trae de TradingView (las filas que pasan por el fallback OHLCV
+ya lo calculan con `indicators.calc_bb`).
 
 Si alguna columna no devuelve datos, ajustar los nombres en `screener_client.py`.
 

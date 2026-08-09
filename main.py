@@ -529,6 +529,14 @@ def main():
                     }
                     rows.append(row)
 
+    for row in rows:
+        if row.get("BB_position|240") is None:
+            bb_upper = row.get("BB.upper|240")
+            bb_lower = row.get("BB.lower|240")
+            close = row.get("close")
+            if bb_upper is not None and bb_lower is not None and close and (bb_upper - bb_lower) != 0:
+                row["BB_position|240"] = (close - bb_lower) / (bb_upper - bb_lower)
+
     ex_counts = {}
     for r in rows:
         ex = r.get("exchange", "?")

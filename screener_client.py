@@ -63,6 +63,8 @@ COLUMNS = [
     "RSI|240",
     "ADX+DI|60",
     "ADX-DI|60",
+    "BB.upper|240",
+    "BB.lower|240",
 ]
 
 
