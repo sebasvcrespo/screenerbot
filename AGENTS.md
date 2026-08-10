@@ -103,18 +103,18 @@ Cuando un exchange está **cerrado**, el agente no envía alertas de pares lista
 
 ### LONG
 - Cambio 24h: 0% a 5%
-- Vol USD 24h: > $300K
+- Vol USD 24h: > $200K
 - Cambio volumen 24h: 0% a 50% (soft — se omite si no hay datos)
 - ATR 1H: > 1.2%
 - ADX 1H: 25 a 45
 - ADX 4H: 12 a 28
-- RSI 1H: 54 a 64
+- RSI 1H: 52 a 64
 - DI 1H: D+ mayor a D- (`plus_gt_minus`)
 - BB Posición 4H: < 0.7
 
 ### SHORT
 - Cambio 24h: -5% a 0%
-- Vol USD 24h: > $300K
+- Vol USD 24h: > $200K
 - Cambio volumen 24h: -30% a 50% (soft — se omite si no hay datos)
 - ATR 1H: > 1.2%
 - ADX 1H: 25 a 35
