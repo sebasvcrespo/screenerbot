@@ -106,11 +106,13 @@ Cuando un exchange está **cerrado**, el agente no envía alertas de pares lista
 - Vol USD 24h: > $200K
 - Cambio volumen 24h: 0% a 50% (soft — se omite si no hay datos)
 - ATR 1H: > 1.2%
-- ADX 1H: 25 a 45
-- ADX 4H: 12 a 28
+- ADX 1H: 25 a 35
+- ADX 4H: 15 a 25
 - RSI 1H: 52 a 64
+- RSI 4H: ≥ 50 (alineación de tendencia 4H)
 - DI 1H: D+ mayor a D- (`plus_gt_minus`)
-- BB Posición 4H: < 0.7
+- BB Posición 4H: 0.4 a 0.8 (evita extremos sobre-extendidos)
+- Funding: ≤ 0.05% (soft — se omite si no hay dato; evita longs hacinados)
 
 ### SHORT
 - Cambio 24h: -5% a 0%
@@ -118,10 +120,16 @@ Cuando un exchange está **cerrado**, el agente no envía alertas de pares lista
 - Cambio volumen 24h: -30% a 50% (soft — se omite si no hay datos)
 - ATR 1H: > 1.2%
 - ADX 1H: 25 a 35
-- ADX 4H: 12 a 28
+- ADX 4H: 15 a 25
 - RSI 1H: 33 a 45
+- RSI 4H: ≤ 50 (alineación de tendencia 4H)
 - DI 1H: D- mayor a D+ (`minus_gt_plus`)
-- BB Posición 4H: > 0.3
+- BB Posición 4H: 0.2 a 0.6 (evita extremos sobre-extendidos)
+- Funding: ≥ -0.05% (soft — se omite si no hay dato; evita shorts hacinados)
+
+El funding se obtiene: Bitget desde el ticker (`fundingRate` → % en `funding_pct`),
+Pionex vía `GET /api/v1/market/fundingRates?symbol=XXX_PERP` (fetch lazy con cache
+en `_funding_cache` para pares que ya pasan los filtros técnicos).
 
 ### Exchanges
 - BITGET

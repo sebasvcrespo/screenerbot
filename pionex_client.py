@@ -6,6 +6,7 @@ import requests
 logger = logging.getLogger(__name__)
 
 PIONEX_TICKERS_URL = "https://api.pionex.com/api/v1/market/tickers"
+PIONEX_FUNDING_URL = "https://api.pionex.com/api/v1/market/fundingRates"
 
 MAX_RETRIES = 2
 RETRY_DELAY = 1.5
@@ -134,3 +135,28 @@ def fetch_pionex_data(symbols):
 
     logger.info("Pionex: %d/%d pares matcheados (%d sin match en API)", found, len(symbols), not_found)
     return result
+
+
+def fetch_pionex_funding(symbol):
+    """Devuelve el funding rate más reciente en % (p.ej. 0.01) o None si falla."""
+    pionex_sym = _symbol_to_pionex(symbol)
+    try:
+        resp = requests.get(
+            PIONEX_FUNDING_URL,
+            params={"symbol": pionex_sym},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if not data.get("result"):
+            return None
+        rates = data.get("data", {}).get("rates", [])
+        if not rates:
+            return None
+        rate = rates[0].get("fundingRate")
+        if rate is None or rate == "":
+            return None
+        return float(rate) * 100
+    except Exception as e:
+        logger.debug("Pionex funding falló para %s: %s", pionex_sym, e)
+        return None

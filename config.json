@@ -25,11 +25,13 @@
         "volume_usd": { "min": 200000 },
         "volume_change_24h": { "min": 0, "max": 50 },
         "atr_1h_pct": { "min": 1.2 },
-        "adx_1h": { "min": 25, "max": 45 },
-        "adx_4h": { "min": 12, "max": 28 },
+        "adx_1h": { "min": 25, "max": 35 },
+        "adx_4h": { "min": 15, "max": 25 },
         "rsi_1h": { "min": 52, "max": 64 },
+        "rsi_4h": { "min": 50 },
         "di_comparison_1h": "plus_gt_minus",
-        "bb_position_4h": { "max": 0.7 }
+        "bb_position_4h": { "min": 0.4, "max": 0.8 },
+        "funding_pct": { "max": 0.05 }
       }
     },
     "short": {
@@ -41,10 +43,12 @@
         "volume_change_24h": { "min": -30, "max": 50 },
         "atr_1h_pct": { "min": 1.2 },
         "rsi_1h": { "min": 33, "max": 45 },
+        "rsi_4h": { "max": 50 },
         "adx_1h": { "min": 25, "max": 35 },
-        "adx_4h": { "min": 12, "max": 28 },
+        "adx_4h": { "min": 15, "max": 25 },
         "di_comparison_1h": "minus_gt_plus",
-        "bb_position_4h": { "min": 0.3 }
+        "bb_position_4h": { "min": 0.2, "max": 0.6 },
+        "funding_pct": { "min": -0.05 }
       }
     }
   },

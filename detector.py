@@ -15,7 +15,7 @@ TV_COLUMN_MAP = {
 
 _warned_filters = set()
 
-SOFT_FILTERS = {"volume_change_24h"}
+SOFT_FILTERS = {"volume_change_24h", "funding_pct"}
 
 
 def _get_filter_value(row, filter_name):
@@ -25,6 +25,9 @@ def _get_filter_value(row, filter_name):
         if atr is not None and close and close != 0:
             return atr / close * 100
         return None
+
+    if filter_name == "funding_pct":
+        return row.get("funding_pct")
 
     col = TV_COLUMN_MAP.get(filter_name)
     if col is None:

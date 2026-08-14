@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from screener_client import query_screener, ScreenerBlockedError
 from bitget_client import fetch_bitget_data
 from bitget_ohlcv import fetch_ohlcv, fetch_ohlcv_batch
-from pionex_client import fetch_pionex_data
+from pionex_client import fetch_pionex_data, fetch_pionex_funding
 from pionex_ohlcv import fetch_pionex_ohlcv, fetch_pionex_ohlcv_batch
 from indicators import calc_indicators_from_ohlcv, calc_1h_indicators, calc_4h_indicators, passes_1h_precheck
 from detector import passes_filters
@@ -116,10 +116,46 @@ def format_indicators(row, screener_config):
         atr_pct = row["ATR|60"] / row["close"] * 100
         indicators.append(("ATR 1H", f"{atr_pct:.2f}%"))
 
+    if "funding_pct" in filters and row.get("funding_pct") is not None:
+        funding = row["funding_pct"]
+        indicators.append(("Funding", f"{funding:+.4f}%"))
+
     if source:
         indicators.append(("Fuente", source))
 
     return indicators
+
+
+_funding_cache = {}
+
+
+def _funding_ok(row, filters):
+    if "funding_pct" not in filters:
+        return True
+
+    base_symbol = row.get("name", "").replace(".P", "")
+
+    if row.get("funding_pct") is None:
+        if row.get("exchange") == "PIONEX":
+            if base_symbol not in _funding_cache:
+                _funding_cache[base_symbol] = fetch_pionex_funding(base_symbol)
+            row["funding_pct"] = _funding_cache.get(base_symbol)
+        else:
+            row["funding_pct"] = None
+
+    funding = row.get("funding_pct")
+    if funding is None:
+        return True
+
+    min_val = filters["funding_pct"].get("min")
+    max_val = filters["funding_pct"].get("max")
+    if min_val is not None and funding < min_val:
+        logger.info("Par %s RECHAZADO por funding: %.4f%% < min %.4f%%", base_symbol, funding, min_val)
+        return False
+    if max_val is not None and funding > max_val:
+        logger.info("Par %s RECHAZADO por funding: %.4f%% > max %.4f%%", base_symbol, funding, max_val)
+        return False
+    return True
 
 
 def main():
@@ -307,6 +343,8 @@ def main():
                 row["volume"] = exchange_data["volume_usd"]
             if "last_price" in exchange_data:
                 row["close"] = exchange_data["last_price"]
+            if "funding_pct" in exchange_data:
+                row["funding_pct"] = exchange_data["funding_pct"]
 
     if "BTC" in activos and pionex_btc_pairs:
         existing_names = {r.get("name") for r in rows}
@@ -517,6 +555,7 @@ def main():
                         "change_source": "BITGET_TICKER" if bd.get("change") is not None else "",
                         "volume": bd.get("volume_usd"),
                         "change_volume": None,
+                        "funding_pct": bd.get("funding_pct"),
                         "ATR|60": calc_1h.get("ATR|60"),
                         "Volatility.D": None,
                         "ADX|60": calc_1h.get("ADX|60"),
@@ -548,27 +587,30 @@ def main():
         logger.info("Filtrando %s...", screener_cfg["name"])
         alerts_by_ex = {}
         for row in rows:
-            if passes_filters(row, screener_cfg["filters"]):
-                pair = row.get("name", "?")
-                exchange = row.get("exchange", "?")
-                indicators = format_indicators(row, screener_cfg)
+            if not passes_filters(row, screener_cfg["filters"]):
+                continue
+            if not _funding_ok(row, screener_cfg["filters"]):
+                continue
+            pair = row.get("name", "?")
+            exchange = row.get("exchange", "?")
+            indicators = format_indicators(row, screener_cfg)
 
-                logger.info("ALERTA %s: %s en %s", screener_cfg["name"], pair, exchange)
+            logger.info("ALERTA %s: %s en %s", screener_cfg["name"], pair, exchange)
 
-                try:
-                    send_alert(
-                        bot_token,
-                        chat_id,
-                        screener_cfg["name"],
-                        screener_cfg.get("emoji", ""),
-                        pair,
-                        exchange,
-                        indicators,
-                    )
-                except Exception as e:
-                    logger.error("Error enviando alerta: %s", e)
+            try:
+                send_alert(
+                    bot_token,
+                    chat_id,
+                    screener_cfg["name"],
+                    screener_cfg.get("emoji", ""),
+                    pair,
+                    exchange,
+                    indicators,
+                )
+            except Exception as e:
+                logger.error("Error enviando alerta: %s", e)
 
-                alerts_by_ex[exchange] = alerts_by_ex.get(exchange, 0) + 1
+            alerts_by_ex[exchange] = alerts_by_ex.get(exchange, 0) + 1
 
         screeners_alerts[screener_key] = alerts_by_ex
         total = sum(alerts_by_ex.values())

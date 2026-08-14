@@ -73,6 +73,13 @@ def fetch_bitget_data():
                     except (ValueError, TypeError):
                         pass
 
+                funding_rate = ticker.get("fundingRate")
+                if funding_rate is not None and funding_rate != "":
+                    try:
+                        entry["funding_pct"] = float(funding_rate) * 100
+                    except (ValueError, TypeError):
+                        pass
+
                 if entry:
                     result[symbol] = entry
 
