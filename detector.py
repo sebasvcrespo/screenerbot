@@ -69,6 +69,25 @@ def passes_filters(row, filters):
                 return False
             continue
 
+        if filter_name == "entry_asymmetry":
+            # Garantiza que la entrada quede MAS CERCA del SL que del TP,
+            # dejando mas recorrido a favor de la posicion (mejor R:R).
+            # Se usa BB_position|240 como proxy del rango operativo (SL..TP).
+            # LONG: 0=SL(abajo), 1=TP(arriba) -> exige pos <= max (no entrar muy arriba, ya alargado)
+            # SHORT: 0=TP(abajo), 1=SL(arriba) -> exige pos >= min (no entrar muy abajo, ya cortado)
+            bb_pos = row.get("BB_position|240")
+            if bb_pos is None:
+                return False
+            max_pos = limits.get("max")
+            min_pos = limits.get("min")
+            if max_pos is not None and bb_pos > max_pos:
+                logger.debug("Par %s RECHAZADO: entrada asimetrica LONG pos=%.4f > max=%.4f", row.get("name", "?"), bb_pos, max_pos)
+                return False
+            if min_pos is not None and bb_pos < min_pos:
+                logger.debug("Par %s RECHAZADO: entrada asimetrica SHORT pos=%.4f < min=%.4f", row.get("name", "?"), bb_pos, min_pos)
+                return False
+            continue
+
         value = _get_filter_value(row, filter_name)
         if value is None:
             if filter_name in SOFT_FILTERS:

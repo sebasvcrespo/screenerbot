@@ -30,7 +30,8 @@
         "rsi_1h": { "min": 52, "max": 64 },
         "rsi_4h": { "min": 50 },
         "di_comparison_1h": "plus_gt_minus",
-        "bb_position_4h": { "min": 0.4, "max": 0.8 },
+        "bb_position_4h": { "min": 0.4, "max": 0.65 },
+        "entry_asymmetry": { "max": 0.6 },
         "funding_pct": { "max": 0.05 }
       }
     },
@@ -47,7 +48,8 @@
         "adx_1h": { "min": 25, "max": 35 },
         "adx_4h": { "min": 15, "max": 25 },
         "di_comparison_1h": "minus_gt_plus",
-        "bb_position_4h": { "min": 0.2, "max": 0.6 },
+        "bb_position_4h": { "min": 0.35, "max": 0.6 },
+        "entry_asymmetry": { "min": 0.4 },
         "funding_pct": { "min": -0.05 }
       }
     }
